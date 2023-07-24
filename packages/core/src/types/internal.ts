@@ -38,13 +38,22 @@ export interface Env {
   public: Record<string, string>;
 }
 
+export interface Logger {
+  (msg: string): void;
+  success(msg: string): void;
+  error(msg: string): void;
+  warn(msg: string): void;
+  minor(msg: string): void;
+  info(msg: string): void;
+}
+
 /**
  * This object is passed to the `adapt` function of adapters.
  * It contains various methods and properties that are useful for adapting the app.
  */
 export interface Builder {
   /** Print messages to the console. `log.info` and `log.minor` are silent unless Vite's `logLevel` is `info`. */
-  log: Logger;
+  // log: Logger;
 
   /** Remove `dir` and all its contents. */
   rimraf(dir: string): void;
@@ -82,18 +91,14 @@ export interface Builder {
    * @returns an array of files written to `dest`
    */
   writeClient(dest: string): string[];
-  /**
-   * Write prerendered files to `dest`.
-   * @param dest the destination folder
-   * @returns an array of files written to `dest`
-   */
-  writePrerendered(dest: string): string[];
+
   /**
    * Write server-side code to `dest`.
    * @param dest the destination folder
    * @returns an array of files written to `dest`
    */
   writeServer(dest: string): string[];
+
   /**
    * Copy a file or directory.
    * @param from the source file or directory
@@ -127,5 +132,5 @@ export interface Adapter {
    * This function is called after SvelteKit has built your app.
    * @param builder An object provided by SvelteKit that contains methods for adapting the app
    */
-  adapt(builder: Builder): MaybePromise<void>;
+  adapt(builder: Builder): void | Promise<void>;
 }

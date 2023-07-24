@@ -7,7 +7,7 @@ import {
   create_static_types,
 } from "../vite/utils/env/resolve.js";
 import { get_env } from "../vite/utils/env/load.js";
-import { Config } from "../config/schema.js";
+import { ValidatedConfig } from "../config/schema.js";
 import { write_if_changed } from "./utils.js";
 import { Env } from "../types/internal.js";
 
@@ -55,14 +55,14 @@ ${create_dynamic_types("public", env, prefixes)}
  * and the existing environment variables in process.env to
  * $env/static/private and $env/static/public
  */
-export function write_ambient(config: Config, mode: string) {
+export function write_ambient(config: ValidatedConfig, mode: string) {
   const env = get_env(config.env, mode);
 
   const { publicPrefix: public_prefix, privatePrefix: private_prefix } =
     config.env;
 
   write_if_changed(
-    path.join(config.output.dir, "ambient.d.ts"),
+    path.join(config.outDir, "ambient.d.ts"),
     template(env, { public_prefix, private_prefix })
   );
 }

@@ -23,7 +23,7 @@ import { dedent } from "ts-dedent";
 import mime from "mime";
 
 import { transform } from "../../compiler/html/index.js";
-import { Config } from "../../config/schema.js";
+import { Config, ValidatedConfig } from "../../config/schema.js";
 import { mkdirp, rimraf } from "../../utils/filesystem.js";
 import { dev } from "../dev/index.js";
 import { resolve_entry } from "../utils/resolve_entry.js";
@@ -31,8 +31,9 @@ import { SvelteModifier } from "../utils/svelte_modifier.js";
 import { get_env } from "../utils/env/load.js";
 import { create_static_module } from "../utils/env/resolve.js";
 import { assets_base } from "../utils/index.js";
-import { Asset, BuildData } from "../../types/internal.js";
+import { Asset, BuildData, Env } from "../../types/internal.js";
 import { build_service_worker } from "../build/service_worker.js";
+import * as sync from "../../sync/index.js";
 
 class ConfigParseError {
   readonly _tag = "ConfigParseError";
@@ -68,10 +69,7 @@ export async function hono(user_config?: Config) {
   let cwd_vite_config: UserConfig;
   let vite_config: ResolvedConfig;
 
-  let cwd_env: {
-    public: Record<string, string>;
-    private: Record<string, string>;
-  };
+  let cwd_env: Env;
 
   const parsed_config = parse_config(user_config ?? ({} as Config));
 
@@ -95,9 +93,9 @@ export async function hono(user_config?: Config) {
 
   const entry_file = entry.value;
 
+  const out_dir = resolved_config.outDir;
   const views_dir = resolved_config.views;
-  const out_dir = resolved_config.output.dir;
-  const out_file = resolved_config.output.file;
+  const out = `${resolved_config.outDir}/output`;
 
   const sourcemapIgnoreList = (relative_path: string) =>
     relative_path.includes("node_modules") || relative_path.includes(out_dir);
@@ -120,6 +118,7 @@ export async function hono(user_config?: Config) {
       let input: InputOption;
 
       if (config_env.command === "build" && build_step !== "server") {
+        sync.init(resolved_config, config_env.mode);
         assets = await create_assets(resolved_config);
         const views = await glob("**/*.html", { cwd: views_dir });
         input = views.map((view) => path.resolve(views_dir, view));
@@ -132,7 +131,7 @@ export async function hono(user_config?: Config) {
       const prefix = `${resolved_config.appDir}/immutable`;
 
       const ssr = build_step === "server";
-      const out_dir_ = `${out_dir}/${ssr ? "server" : "client"}`;
+      const out_dir_ = `${out}/${ssr ? "server" : "client"}`;
 
       const is_build = config_env.command === "build";
 
@@ -187,8 +186,8 @@ export async function hono(user_config?: Config) {
       if (build_step === "server") return;
 
       if (vite_env.command === "build") {
-        if (!vite_config.build.watch) rimraf(out_dir);
-        mkdirp(out_dir);
+        if (!vite_config.build.watch) rimraf(out);
+        mkdirp(out);
       }
     },
     async writeBundle() {
@@ -234,7 +233,7 @@ export async function hono(user_config?: Config) {
           mkdirp(`${out_dir}/generated`);
 
           await build_service_worker(
-            out_dir,
+            out,
             resolved_config,
             vite_config,
             assets,
@@ -392,7 +391,7 @@ export async function hono(user_config?: Config) {
 
         const parsed = path.parse(importer);
 
-        const views_out_dir = path.join(out_dir, "client");
+        const views_out_dir = path.join(out, "client");
 
         /**
          * Given we've redirected imports to the client build output directory, we need
@@ -480,18 +479,20 @@ export async function hono(user_config?: Config) {
 
 function parse_config(config: Config) {
   const result = Config.safeParse(config);
-  return result.success ? E.right(result.data) : E.left(new ConfigParseError());
+  return result.success
+    ? E.right(result.data as ValidatedConfig)
+    : E.left(new ConfigParseError());
 }
 
-function resolve_config(config: Config) {
+function resolve_config(config: ValidatedConfig) {
   const _config = { ...config };
   _config.entry = path.join(cwd, config.entry);
   _config.views = path.join(cwd, config.views);
-  _config.output.dir = path.join(cwd, config.output.dir);
+  _config.outDir = path.join(cwd, config.outDir);
   return _config;
 }
 
-export async function create_assets(config: Config) {
+export async function create_assets(config: ValidatedConfig) {
   const files = await glob("**/*", { cwd: config.files.assets });
 
   return files.map((file) => {
@@ -500,7 +501,7 @@ export async function create_assets(config: Config) {
   });
 }
 
-async function create_service_worker_module(config: Config) {
+async function create_service_worker_module(config: ValidatedConfig) {
   const assets = await create_assets(config);
 
   return dedent`

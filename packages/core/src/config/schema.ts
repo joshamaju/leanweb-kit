@@ -1,46 +1,72 @@
-import * as Schema from "zod";
+import * as S from "zod";
 import { join } from "node:path";
+import { Builder } from "../types/internal.js";
 
-export const Config = Schema.object({
-  views: Schema.optional(Schema.string()).default("src/views"),
-  entry: Schema.optional(Schema.string()).default("src/entry"),
-
-  appDir: Schema.optional(Schema.string()).default("_app"),
-
-  env: Schema.object({
-    privatePrefix: Schema.string().default(""),
-    dir: Schema.string().default(process.cwd()),
-    publicPrefix: Schema.string().default("PUBLIC_"),
-    schema: Schema.optional(Schema.string()).default("src/env"),
-  }).default({}),
-
-  output: Schema.optional(
-    Schema.object({
-      dir: Schema.optional(Schema.string()).default(".hono-mvc"),
-      file: Schema.optional(Schema.string()).default("index.js"),
-    })
-  ).default({}),
-
-  files: Schema.object({
-    assets: Schema.string().default("static"),
-    appTemplate: Schema.string().default(join("src", "app.html")),
-    errorTemplate: Schema.string().default(join("src", "error.html")),
-    serviceWorker: Schema.string().default(join("src", "service-worker")),
-  }).default({}),
-
-  paths: Schema.object({
-    base: Schema.string().default(""),
-    assets: Schema.string().default(""),
-    relative: Schema.string().optional(),
-  }).default({}),
-
-  serviceWorker: Schema.object({
-    register: Schema.boolean().default(true),
-    files: Schema.function()
-      .args(Schema.string())
-      .returns(Schema.boolean())
-      .default(() => (filename: string) => !/\.DS_Store/.test(filename)),
-  }).default({}),
+const Adapter = S.object({
+  name: S.string(),
+  adapt: S.function()
+    .args(S.custom<Builder>())
+    .returns(S.union([S.void(), S.promise(S.void())])),
 });
 
-export type Config = Schema.infer<typeof Config>;
+export const Config = S.object({
+  views: S.string().optional().default("src/views"),
+  entry: S.string().optional().default("src/entry"),
+
+  adapter: S.optional(Adapter),
+
+  appDir: S.string().optional().default("_app"),
+
+  outDir: S.string().optional().default(".hono-mvc"),
+
+  env: S.object({
+    privatePrefix: S.string().optional().default(""),
+    schema: S.string().optional().default("src/env"),
+    dir: S.string().optional().default(process.cwd()),
+    publicPrefix: S.string().optional().default("PUBLIC_"),
+  })
+    .optional()
+    .default({}),
+
+  files: S.object({
+    assets: S.string().optional().default("static"),
+    appTemplate: S.string().optional().default(join("src", "app.html")),
+    errorTemplate: S.string().optional().default(join("src", "error.html")),
+    serviceWorker: S.string().optional().default(join("src", "service-worker")),
+  })
+    .optional()
+    .default({}),
+
+  paths: S.object({
+    base: S.string().optional().default(""),
+    assets: S.string().optional().default(""),
+    relative: S.string().optional(),
+  })
+    .optional()
+    .default({}),
+
+  serviceWorker: S.object({
+    register: S.boolean().optional().default(true),
+    files: S.function()
+      .args(S.string())
+      .returns(S.boolean())
+      .optional()
+      .default(() => (filename: string) => !/\.DS_Store/.test(filename)),
+  })
+    .optional()
+    .default({}),
+});
+
+export type Config = S.input<typeof Config>;
+
+export type Adapter = S.infer<typeof Adapter>;
+
+export type RecursiveRequired<T> = {
+  // Recursive implementation of TypeScript's Required utility type.
+  // Will recursively continue until it reaches a primitive or Function
+  [K in keyof T]-?: Extract<T[K], Function> extends never // If it does not have a Function type
+    ? RecursiveRequired<T[K]> // recursively continue through.
+    : T[K]; // Use the exact type for everything else
+};
+
+export type ValidatedConfig = S.infer<typeof Config>;

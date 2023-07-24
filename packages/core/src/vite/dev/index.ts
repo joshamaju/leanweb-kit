@@ -1,4 +1,4 @@
-import { Config } from "src/config/schema.js";
+import { ValidatedConfig } from "src/config/schema.js";
 import { ResolvedConfig, ViteDevServer } from "vite";
 
 import * as fs from "node:fs";
@@ -39,7 +39,7 @@ function is_css_request(url: string) {
 export async function dev(
   vite: ViteDevServer,
   vite_config: ResolvedConfig,
-  config: Config
+  config: ValidatedConfig
 ) {
   if (should_polyfill) {
     installPolyfills();

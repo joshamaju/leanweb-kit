@@ -1,8 +1,8 @@
 import { loadEnv } from "vite";
-import { Config } from "../../../config/schema.js";
+import { ValidatedConfig } from "../../../config/schema.js";
 
 // Load environment variables from process.env and .env files
-export function get_env(env_config: Config["env"], mode: string) {
+export function get_env(env_config: ValidatedConfig["env"], mode: string) {
   const { publicPrefix: public_prefix, privatePrefix: private_prefix } =
     env_config;
 

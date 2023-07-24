@@ -7,7 +7,7 @@ import * as O from "fp-ts/lib/Option.js";
 
 import { write_if_changed } from "./utils.js";
 import { posixify } from "../utils/filesystem.js";
-import { Config } from "../config/schema.js";
+import { ValidatedConfig } from "../config/schema.js";
 
 function maybe_file(cwd: string, file: string) {
   const resolved = path.resolve(cwd, file);
@@ -32,8 +32,8 @@ function remove_trailing_slashstar(file: string) {
 }
 
 // Generates the tsconfig that the user's tsconfig inherits from.
-export function write_tsconfig(config: Config, cwd = process.cwd()) {
-  const out = path.join(config.output.dir, "tsconfig.json");
+export function write_tsconfig(config: ValidatedConfig, cwd = process.cwd()) {
+  const out = path.join(config.outDir, "tsconfig.json");
 
   const user_config = load_user_tsconfig(cwd);
   if (user_config) validate_user_config(config, cwd, out, user_config);
@@ -81,9 +81,12 @@ export function write_tsconfig(config: Config, cwd = process.cwd()) {
 }
 
 // Generates the tsconfig that the user's tsconfig inherits from.
-export function get_tsconfig(config: Config, include_base_url: boolean) {
+export function get_tsconfig(
+  config: ValidatedConfig,
+  include_base_url: boolean
+) {
   const config_relative = (file: string) =>
-    posixify(path.relative(config.output.dir, file));
+    posixify(path.relative(config.outDir, file));
 
   const include = new Set([
     "ambient.d.ts",
@@ -171,7 +174,7 @@ function load_user_tsconfig(cwd: string) {
 }
 
 function validate_user_config(
-  config: Config,
+  config: ValidatedConfig,
   cwd: string,
   out: string,
   tsconfig: { kind: string; options: any }
@@ -215,9 +218,12 @@ const value_regex = /^(.*?)((\/\*)|(\.\w+))?$/;
  * Generates tsconfig path aliases from kit's aliases.
  * Related to vite alias creation.
  */
-function get_tsconfig_paths(config: Config, include_base_url: boolean) {
+function get_tsconfig_paths(
+  config: ValidatedConfig,
+  include_base_url: boolean
+) {
   const config_relative = (file: string) =>
-    posixify(path.relative(config.output.dir, file));
+    posixify(path.relative(config.outDir, file));
 
   const alias: Record<string, string> = {};
 

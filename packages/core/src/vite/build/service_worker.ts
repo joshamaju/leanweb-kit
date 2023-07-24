@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as vite from "vite";
 import { dedent } from "ts-dedent";
-import { Config } from "../../config/schema.js";
+import { ValidatedConfig } from "../../config/schema.js";
 import type { ResolvedConfig } from "vite";
 import { Asset } from "../../types/internal.js";
 import { assets_base } from "../utils/index.js";
@@ -10,7 +10,7 @@ const s = JSON.stringify;
 
 export async function build_service_worker(
   out: string,
-  config: Config,
+  config: ValidatedConfig,
   vite_config: ResolvedConfig,
   assets: Asset[],
   service_worker_entry_file: string
@@ -19,7 +19,7 @@ export async function build_service_worker(
 
   assets.forEach((file) => build.add(file.file));
 
-  const service_worker = `${config.output.dir}/generated/service-worker.js`;
+  const service_worker = `${config.outDir}/generated/service-worker.js`;
 
   // in a service worker, `location` is the location of the service worker itself,
   // which is guaranteed to be `<base>/service-worker.js`
