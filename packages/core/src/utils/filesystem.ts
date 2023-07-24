@@ -2,9 +2,7 @@ import * as fs from "node:fs";
 import { StatSyncFn } from "node:fs";
 
 import * as IO from "fp-ts/lib/IOEither.js";
-import * as E from "fp-ts/lib/Either.js";
-import * as O from "fp-ts/lib/Option.js";
-import { identity, pipe } from "fp-ts/lib/function.js";
+import { pipe } from "fp-ts/lib/function.js";
 
 export function posixify(str: string) {
   return str.replace(/\\/g, "/");

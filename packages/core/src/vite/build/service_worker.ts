@@ -17,7 +17,7 @@ export async function build_service_worker(
 ) {
   const build = new Set();
 
-  assets.forEach((file) => build.add(file));
+  assets.forEach((file) => build.add(file.file));
 
   const service_worker = `${config.output.dir}/generated/service-worker.js`;
 

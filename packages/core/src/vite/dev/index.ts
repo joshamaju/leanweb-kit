@@ -6,6 +6,9 @@ import * as path from "node:path";
 import { URL } from "node:url";
 import sirv from "sirv";
 import { buildErrorMessage } from "vite";
+
+import * as O from "fp-ts/lib/Option.js";
+
 import { posixify, to_fs } from "../../utils/filesystem.js";
 import { should_polyfill } from "../../utils/platform.js";
 import { getRequest, setResponse } from "../node/index.js";
@@ -17,6 +20,7 @@ import mime from "mime";
 import { Server } from "connect";
 
 import { Hono } from "hono";
+import { resolve_entry } from "../utils/resolve_entry.js";
 
 const script_file_regex = /\.(js|ts)$/;
 
@@ -337,16 +341,6 @@ export async function dev(
     },
   });
 
-  const view_asset_server = sirv(config.views, {
-    dev: true,
-    etag: true,
-    maxAge: 0,
-    extensions: [],
-    setHeaders: (res) => {
-      res.setHeader("access-control-allow-origin", "*");
-    },
-  });
-
   const ws_send = vite.ws.send;
 
   vite.ws.send = function (...args: any) {
@@ -395,6 +389,7 @@ export async function dev(
       // Vite's base middleware strips out the base path. Restore it
       const original_url = req.url;
       req.url = req.originalUrl;
+
       try {
         const base = `${vite.config.server.https ? "https" : "http"}://${
           req.headers[":authority"] || req.headers.host
@@ -402,26 +397,7 @@ export async function dev(
 
         const decoded = decodeURI(new URL(base + req.url).pathname);
 
-        // const file = posixify(
-        //   path.resolve(decoded.slice(svelte_config.kit.paths.base.length + 1))
-        // );
-
-        const file = posixify(path.resolve(decoded));
-
-        const is_file = fs.existsSync(file) && !fs.statSync(file).isDirectory();
-
-        const allowed =
-          !vite_config.server.fs.strict ||
-          vite_config.server.fs.allow.some((dir) => file.startsWith(dir));
-
-        console.log(decoded);
-
-        if (is_file && allowed) {
-          req.url = original_url;
-          // @ts-expect-error
-          serve_static_middleware.handle(req, res);
-          return;
-        }
+        console.log("decoded: ", decoded);
 
         // if (!decoded.startsWith(svelte_config.kit.paths.base)) {
         //   return not_found(req, res, svelte_config.kit.paths.base);
@@ -461,27 +437,23 @@ export async function dev(
 
             contents.pipe(res);
 
-            // view_asset_server(req, res);
-
             return;
           }
         }
 
-        // if (decoded === svelte_config.kit.paths.base + "/service-worker.js") {
-        //   const resolved = resolve_entry(svelte_config.kit.files.serviceWorker);
+        if (decoded === config.paths.base + "/service-worker.js") {
+          const resolved = resolve_entry(config.files.serviceWorker)();
 
-        //   if (resolved) {
-        //     res.writeHead(200, {
-        //       "content-type": "application/javascript",
-        //     });
-        //     res.end(`import '${to_fs(resolved)}';`);
-        //   } else {
-        //     res.writeHead(404);
-        //     res.end("not found");
-        //   }
+          if (O.isSome(resolved)) {
+            res.writeHead(200, { "content-type": "application/javascript" });
+            res.end(`import '${to_fs(resolved.value)}';`);
+          } else {
+            res.writeHead(404);
+            res.end("not found");
+          }
 
-        //   return;
-        // }
+          return;
+        }
 
         // we have to import `Server` before calling `set_assets`
         const module = await vite.ssrLoadModule(config.entry);

@@ -13,7 +13,7 @@ const app = new Hono();
 
 const dir = path.dirname(url.fileURLToPath(import.meta.url));
 
-console.log(PUBLIC_API_KEY);
+console.log("api key: ", PUBLIC_API_KEY);
 
 // app.use(
 //   "/immutable/*",
