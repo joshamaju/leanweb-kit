@@ -22,11 +22,7 @@ export interface BuildData {
 }
 
 export interface SSROptions {
-  // csp: ValidatedConfig["kit"]["csp"];
-  version_hash: string;
   service_worker: boolean;
-  env_public_prefix: string;
-  csrf_check_origin: boolean;
   env_private_prefix: string;
   templates: {
     error(values: { message: string; status: number }): string;
@@ -53,7 +49,7 @@ export interface Logger {
  */
 export interface Builder {
   /** Print messages to the console. `log.info` and `log.minor` are silent unless Vite's `logLevel` is `info`. */
-  // log: Logger;
+  log: Logger;
 
   /** Remove `dir` and all its contents. */
   rimraf(dir: string): void;

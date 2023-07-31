@@ -7,6 +7,7 @@ import type {
   ViteDevServer,
 } from "vite";
 import * as vite from "vite";
+import legacy from "@vitejs/plugin-legacy";
 
 import { compile } from "svelte/compiler";
 
@@ -21,6 +22,7 @@ import * as path from "node:path";
 import { glob } from "glob";
 import { dedent } from "ts-dedent";
 import mime from "mime";
+import colors from "kleur";
 
 import { transform } from "../../compiler/html/index.js";
 import { Config, ValidatedConfig } from "../../config/schema.js";
@@ -30,10 +32,12 @@ import { resolve_entry } from "../utils/resolve_entry.js";
 import { SvelteModifier } from "../utils/svelte_modifier.js";
 import { get_env } from "../utils/env/load.js";
 import { create_static_module } from "../utils/env/resolve.js";
-import { assets_base } from "../utils/index.js";
+import { assets_base, logger } from "../utils/index.js";
 import { Asset, BuildData, Env } from "../../types/internal.js";
 import { build_service_worker } from "../build/service_worker.js";
 import * as sync from "../../sync/index.js";
+import { adapt } from "../../adapt/index.js";
+import { load_error_page } from "../../config/load.js";
 
 class ConfigParseError {
   readonly _tag = "ConfigParseError";
@@ -63,29 +67,31 @@ let build_step: "client" | "server";
 
 let assets: Asset[];
 
+let views: string[];
+
 export async function hono(user_config?: Config) {
-  let vite_env: ConfigEnv;
+  let vite_env_: ConfigEnv;
   let vite_server: ViteDevServer;
-  let cwd_vite_config: UserConfig;
-  let vite_config: ResolvedConfig;
+  let vite_config_: ResolvedConfig;
+  let user_vite_config_: UserConfig;
 
   let cwd_env: Env;
 
-  const parsed_config = parse_config(user_config ?? ({} as Config));
+  let finalize: () => Promise<void>;
 
-  const config = pipe(parsed_config, E.map(resolve_config));
+  const parsed_user_config = parse_config(user_config ?? ({} as Config));
 
-  if (E.isLeft(config)) {
+  const resolved_config = pipe(parsed_user_config, E.map(resolve_config));
+
+  if (E.isLeft(resolved_config)) {
     throw new Error("Invalid config");
   }
 
-  const resolved_config = config.right;
+  const config = resolved_config.right;
 
-  const entry = resolve_entry(resolved_config.entry)();
+  const entry = resolve_entry(config.entry)();
 
-  const service_worker_entry_file = resolve_entry(
-    resolved_config.files.serviceWorker
-  )();
+  const service_worker_file = resolve_entry(config.files.serviceWorker)();
 
   if (O.isNone(entry)) {
     throw new NoEntryFileError();
@@ -93,58 +99,67 @@ export async function hono(user_config?: Config) {
 
   const entry_file = entry.value;
 
-  const out_dir = resolved_config.outDir;
-  const views_dir = resolved_config.views;
-  const out = `${resolved_config.outDir}/output`;
+  const views_directory = config.views;
+  const root_output_directory = config.outDir;
+  const output_directory = `${root_output_directory}/output`;
+
+  const generated = `${root_output_directory}/generated`;
+
+  const views_out_directory = path.join(output_directory, "client");
+
+  mkdirp(generated);
 
   const sourcemapIgnoreList = (relative_path: string) =>
-    relative_path.includes("node_modules") || relative_path.includes(out_dir);
+    relative_path.includes("node_modules") ||
+    relative_path.includes(root_output_directory);
 
   const setup: Plugin = {
     name: "setup",
     configResolved(config) {
-      vite_config = config;
+      vite_config_ = config;
     },
     configureServer(server) {
       vite_server = server;
-      return dev(server, vite_config, resolved_config);
+      return dev(server, vite_config_, config);
     },
-    async config(config, config_env) {
-      vite_env = config_env;
-      cwd_vite_config = config;
+    async config(vite_config, vite_config_env) {
+      vite_env_ = vite_config_env;
+      user_vite_config_ = vite_config;
 
-      cwd_env = get_env(resolved_config.env, config_env.mode);
+      const is_build = vite_config_env.command === "build";
+
+      cwd_env = get_env(config.env, vite_config_env.mode);
 
       let input: InputOption;
 
-      if (config_env.command === "build" && build_step !== "server") {
-        sync.init(resolved_config, config_env.mode);
-        assets = await create_assets(resolved_config);
-        const views = await glob("**/*.html", { cwd: views_dir });
-        input = views.map((view) => path.resolve(views_dir, view));
+      if (is_build && build_step !== "server") {
+        assets = await create_assets(config);
+        views = await glob("**/*.html", { cwd: views_directory });
+        sync.init(generated, config, views, vite_config_env.mode);
+        input = views.map((view) => path.resolve(views_directory, view));
       } else {
-        input = { entry: entry_file };
+        input = { index: entry_file, internal: `${generated}/internal.js` };
       }
 
-      // const prefix = "immutable";
-
-      const prefix = `${resolved_config.appDir}/immutable`;
-
       const ssr = build_step === "server";
-      const out_dir_ = `${out}/${ssr ? "server" : "client"}`;
-
-      const is_build = config_env.command === "build";
+      const prefix = `${config.appDir}/immutable`;
+      const build_directory = `${output_directory}/${
+        ssr ? "server" : "client"
+      }`;
 
       return {
         root: cwd,
-        ssr: { noExternal: ["hono", "svelte"] },
-        publicDir: resolved_config.files.assets,
-        base: ssr ? assets_base(resolved_config) : "./",
+        publicDir: config.files.assets,
+        base: !ssr ? assets_base(config) : "./",
+        ssr: { noExternal: ["hono", "svelte", "esm-env"] },
         define: {
-          __SVELTEKIT_DEV__: is_build ? "true" : "false",
+          __SVELTEKIT_DEV__: !is_build ? "true" : "false",
         },
         server: {
           sourcemapIgnoreList,
+        },
+        resolve: {
+          alias: [{ find: "__SERVER__", replacement: generated }],
         },
         worker: {
           rollupOptions: {
@@ -157,19 +172,19 @@ export async function hono(user_config?: Config) {
           },
         },
         build: {
-          ssr: true,
-          outDir: out_dir_,
+          ssr,
           ssrEmitAssets: true,
           copyPublicDir: !ssr,
+          outDir: build_directory,
           target: ssr ? "node16.14" : undefined,
           cssMinify:
-            cwd_vite_config.build?.minify == null
+            user_vite_config_.build?.minify == null
               ? true
-              : !!cwd_vite_config.build.minify,
+              : !!user_vite_config_.build.minify,
           rollupOptions: {
             input,
             output: {
-              format: "esm",
+              // format: "esm",
               sourcemapIgnoreList,
               hoistTransitiveImports: false,
               entryFileNames: ssr ? "[name].js" : `${prefix}/[name].[hash].js`,
@@ -185,82 +200,112 @@ export async function hono(user_config?: Config) {
     buildStart() {
       if (build_step === "server") return;
 
-      if (vite_env.command === "build") {
-        if (!vite_config.build.watch) rimraf(out);
-        mkdirp(out);
+      if (vite_env_.command === "build") {
+        if (!vite_config_.build.watch) rimraf(output_directory);
+        mkdirp(output_directory);
       }
+    },
+    /**
+     * Runs the adapter.
+     */
+    async closeBundle() {
+      if (build_step !== "server") return;
+      await finalize?.();
     },
     async writeBundle() {
       if (build_step !== "server") {
         build_step = "server";
 
+        const verbose = vite_config_.logLevel === "info";
+        const log = logger({ verbose });
+
         const build_data: BuildData = {
           assets,
-          app_dir: resolved_config.appDir,
-          app_path: `${resolved_config.paths.base.slice(1)}${
-            resolved_config.paths.base ? "/" : ""
-          }${resolved_config.appDir}`,
-          service_worker: service_worker_entry_file
-            ? "service-worker.js"
-            : null,
+          app_dir: config.appDir,
+          app_path: `${config.paths.base.slice(1)}${
+            config.paths.base ? "/" : ""
+          }${config.appDir}`,
+          service_worker: service_worker_file ? "service-worker.js" : null,
         };
 
         // Initiate second build step that builds the final server output
         await vite.build({
-          mode: vite_env.mode,
-          logLevel: vite_config.logLevel,
-          configFile: vite_config.configFile,
-          clearScreen: vite_config.clearScreen,
+          mode: vite_env_.mode,
+          logLevel: vite_config_.logLevel,
+          configFile: vite_config_.configFile,
+          clearScreen: vite_config_.clearScreen,
           optimizeDeps: {
-            force: vite_config.optimizeDeps.force,
+            force: vite_config_.optimizeDeps.force,
           },
           build: {
-            minify: cwd_vite_config.build?.minify,
-            sourcemap: vite_config.build.sourcemap,
-            assetsInlineLimit: vite_config.build.assetsInlineLimit,
+            minify: user_vite_config_.build?.minify,
+            sourcemap: vite_config_.build.sourcemap,
+            assetsInlineLimit: vite_config_.build.assetsInlineLimit,
           },
         });
 
-        if (O.isSome(service_worker_entry_file)) {
-          if (resolved_config.paths.assets) {
+        if (O.isSome(service_worker_file)) {
+          if (config.paths.assets) {
             throw new Error(
-              "Cannot use service worker alongside config.kit.paths.assets"
+              "Cannot use service worker alongside config.paths.assets"
             );
           }
 
           console.info("Building service worker");
 
-          mkdirp(`${out_dir}/generated`);
-
           await build_service_worker(
-            out,
-            resolved_config,
-            vite_config,
+            output_directory,
+            config,
+            vite_config_,
             assets,
-            service_worker_entry_file.value
+            service_worker_file.value
           );
         }
+
+        // we need to defer this to closeBundle, so that adapters copy files
+        // created by other Vite plugins
+        finalize = async () => {
+          console.log(
+            `\nRun ${colors
+              .bold()
+              .cyan(
+                "npm run preview"
+              )} to preview your production build locally.`
+          );
+
+          if (E.isRight(parsed_user_config)) {
+            rimraf(`${views_out_directory}/${parsed_user_config.right.views}`);
+          }
+
+          if (config.adapter) {
+            await adapt(config, build_data, log);
+          } else {
+            console.log(colors.bold().yellow("\nNo adapter specified"));
+
+            const link = colors
+              .bold()
+              .cyan("https://kit.svelte.dev/docs/adapters");
+
+            console.log(
+              `See ${link} to learn how to configure your app to run on the platform of your choosing`
+            );
+          }
+
+          build_step = "client";
+        };
       }
     },
   };
 
   const virtual_modules: Plugin = {
     name: "virtual-modules",
-
     async resolveId(id) {
       // treat $env/static/[public|private] as virtual
-      if (
-        id.startsWith("$env/") ||
-        id.startsWith("__sveltekit/") ||
-        id === "$service-worker"
-      ) {
+      if (id.startsWith("$env/") || id === "$service-worker") {
         return `\0${id}`;
       }
     },
-
-    async load(id, options) {
-      const browser = !options?.ssr;
-
+    async load(id) {
       switch (id) {
         case "\0$env/static/private":
           return create_static_module("$env/static/private", cwd_env.private);
@@ -268,85 +313,15 @@ export async function hono(user_config?: Config) {
         case "\0$env/static/public":
           return create_static_module("$env/static/public", cwd_env.public);
 
-        // case "\0$env/dynamic/private":
-        //   return create_dynamic_module(
-        //     "private",
-        //     vite_config_env.command === "serve" ? env.private : undefined
-        //   );
-
-        // case "\0$env/dynamic/public":
-        //   // populate `$env/dynamic/public` from `window`
-        //   if (browser) {
-        //     return `export const env = ${global}.env;`;
-        //   }
-
-        //   return create_dynamic_module(
-        //     "public",
-        //     vite_config_env.command === "serve" ? env.public : undefined
-        //   );
-
         case "\0$service-worker":
-          return await create_service_worker_module(resolved_config);
-
-        // for internal use only. it's published as $app/paths externally
-        // we use this alias so that we won't collide with user aliases
-        case "\0__sveltekit/paths": {
-          const { assets, base } = resolved_config.paths;
-
-          // use the values defined in `global`, but fall back to hard-coded values
-          // for the sake of things like Vitest which may import this module
-          // outside the context of a page
-          if (browser) {
-            return dedent`
-							export const base = ${global}?.base ?? ${s(base)};
-							export const assets = ${global}?.assets ?? ${assets ? s(assets) : "base"};
-						`;
-          }
-
-          return dedent`
-						export let base = ${s(base)};
-						export let assets = ${assets ? s(assets) : "base"};
-
-						export const relative = ${resolved_config.paths.relative};
-
-						const initial = { base, assets };
-
-						export function override(paths) {
-							base = paths.base;
-							assets = paths.assets;
-						}
-
-						export function reset() {
-							base = initial.base;
-							assets = initial.assets;
-						}
-
-						/** @param {string} path */
-						export function set_assets(path) {
-							assets = initial.assets = path;
-						}
-					`;
-        }
-
-        // case "\0__sveltekit/environment": {
-        //   const { version } = svelte_config.kit;
-
-        //   return dedent`
-        // 		export const version = ${s(version.name)};
-        // 		export let building = false;
-
-        // 		export function set_building() {
-        // 			building = true;
-        // 		}
-        // 	`;
-        // }
+          return await create_service_worker_module(config);
       }
     },
   };
 
   // Walk html file and attach the source file name for each asset in the html file, so that
   // we can accurately identify and serve them during dev
-  const compile_dev: Plugin = {
+  const compile_serve: Plugin = {
     apply: "serve",
     name: "plugin-compile-dev",
     async transform(html, id) {
@@ -391,8 +366,6 @@ export async function hono(user_config?: Config) {
 
         const parsed = path.parse(importer);
 
-        const views_out_dir = path.join(out, "client");
-
         /**
          * Given we've redirected imports to the client build output directory, we need
          * to then resolve an subsequent imports from files in that directory
@@ -412,7 +385,7 @@ export async function hono(user_config?: Config) {
          * Then `home.html` that was resolved from the `build` folder imports `build/client/.../footer.html`
          * which we then need to resolve from `build/client/.../footer.html`
          */
-        if (importer.startsWith(views_out_dir)) {
+        if (importer.startsWith(views_out_directory)) {
           const resolved = path.resolve(parsed.dir, source);
           return resolved + html_postfix;
         }
@@ -426,11 +399,28 @@ export async function hono(user_config?: Config) {
          * url, point the import to the html file in the output directory
          */
         const resolved_view = path.join(
-          views_out_dir,
+          views_out_directory,
           path.resolve(parsed.dir, source).substring(cwd.length)
         );
 
         return resolved_view + html_postfix;
+      }
+
+      // Given all the about transformation, we might have svelte components that import other kinds of
+      // files. So we need to do the reverse (find the file in the project actual src directory), then resolve
+      // the import
+      if (importer && html_postfix_regex.test(importer)) {
+        const id = importer.replace(html_postfix_regex, "");
+        const src = path.join(cwd, id.replace(views_out_directory, ""));
+
+        const parsed = path.parse(src);
+        const resolved = path.resolve(parsed.dir, source);
+
+        // The generated svelte component imports svelte internals, which means we'll not be able
+        // to resolve it from the src directory. And should also take care of any node_modules import
+        if (fs.existsSync(resolved)) {
+          return resolved;
+        }
       }
     },
     load(id) {
@@ -445,7 +435,7 @@ export async function hono(user_config?: Config) {
   };
 
   // Remove everything svelte before vite tries to transform the html file during production build
-  const plugin_strip_svelte: Plugin = {
+  const strip_svelte: Plugin = {
     apply: "build",
     name: "plugin-strip-svelte",
     transformIndexHtml: {
@@ -458,7 +448,7 @@ export async function hono(user_config?: Config) {
   };
 
   // Restore everything svelte removed by the previous plugin so that we can compile to svelte components
-  const plugin_restore_script: Plugin = {
+  const restore_script: Plugin = {
     apply: "build",
     enforce: "post",
     name: "plugin-restore-svelte",
@@ -469,11 +459,13 @@ export async function hono(user_config?: Config) {
 
   return [
     setup,
-    compile_dev,
+    compile_serve,
     resolve_build,
-    plugin_strip_svelte,
-    plugin_restore_script,
+    strip_svelte,
+    restore_script,
     virtual_modules,
+    // // @ts-expect-error
+    // legacy({ targets: ["defaults", "not IE 11"] }),
   ];
 }
 
@@ -489,6 +481,12 @@ function resolve_config(config: ValidatedConfig) {
   _config.entry = path.join(cwd, config.entry);
   _config.views = path.join(cwd, config.views);
   _config.outDir = path.join(cwd, config.outDir);
+
+  for (const k in config.files) {
+    const key = k as keyof typeof config.files;
+    _config.files[key] = path.resolve(cwd, config.files[key]);
+  }
+
   return _config;
 }
 
@@ -508,8 +506,6 @@ async function create_service_worker_module(config: ValidatedConfig) {
 	if (typeof self === 'undefined' || self instanceof ServiceWorkerGlobalScope === false) {
 		throw new Error('This module can only be imported inside a service worker');
 	}
-
-	export const build = [];
   
 	export const files = [
 		${assets

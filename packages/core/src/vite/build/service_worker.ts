@@ -30,12 +30,6 @@ export async function build_service_worker(
     dedent`
 			export const base = /*@__PURE__*/ ${base};
 
-			export const build = [
-				${Array.from(build)
-          .map((file) => `base + ${s(`/${file}`)}`)
-          .join(",\n")}
-			];
-
 			export const files = [
 				${assets
           .filter((asset) => config.serviceWorker.files(asset.file))
@@ -68,6 +62,7 @@ export async function build_service_worker(
       alias: [
         // ...get_config_aliases(config),
         { find: "$service-worker", replacement: service_worker },
+        { find: "__SERVER__", replacement: `${config.outDir}/generated` },
       ],
     },
   });

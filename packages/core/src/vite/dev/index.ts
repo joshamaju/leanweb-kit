@@ -9,18 +9,19 @@ import { buildErrorMessage } from "vite";
 
 import * as O from "fp-ts/lib/Option.js";
 
-import { posixify, to_fs } from "../../utils/filesystem.js";
+import { mkdirp, posixify, to_fs } from "../../utils/filesystem.js";
 import { should_polyfill } from "../../utils/platform.js";
 import { getRequest, setResponse } from "../node/index.js";
 import { installPolyfills } from "../node/polyfills.js";
 import * as sync from "../../sync/index.js";
+import { resolve_entry } from "../utils/resolve_entry.js";
 
 import mime from "mime";
 
 import { Server } from "connect";
 
 import { Hono } from "hono";
-import { resolve_entry } from "../utils/resolve_entry.js";
+import { glob } from "glob";
 
 const script_file_regex = /\.(js|ts)$/;
 
@@ -45,7 +46,13 @@ export async function dev(
     installPolyfills();
   }
 
-  sync.init(config, vite_config.mode);
+  const generated = `${config.outDir}/generated`;
+
+  const views = await glob("**/*.html", { cwd: config.views });
+
+  // mkdirp(generated);
+
+  sync.init(generated, config, views, vite_config.mode);
 
   async function loud_ssr_load_module(url: string) {
     try {
@@ -397,11 +404,23 @@ export async function dev(
 
         const decoded = decodeURI(new URL(base + req.url).pathname);
 
-        console.log("decoded: ", decoded);
-
         // if (!decoded.startsWith(svelte_config.kit.paths.base)) {
         //   return not_found(req, res, svelte_config.kit.paths.base);
         // }
+
+        if (decoded === config.paths.base + "/service-worker.js") {
+          const resolved = resolve_entry(config.files.serviceWorker)();
+
+          if (O.isSome(resolved)) {
+            res.writeHead(200, { "content-type": "application/javascript" });
+            res.end(`import '${to_fs(resolved.value)}';`);
+          } else {
+            res.writeHead(404);
+            res.end("not found");
+          }
+
+          return;
+        }
 
         const url = new URL(base + req.url);
 
@@ -439,20 +458,6 @@ export async function dev(
 
             return;
           }
-        }
-
-        if (decoded === config.paths.base + "/service-worker.js") {
-          const resolved = resolve_entry(config.files.serviceWorker)();
-
-          if (O.isSome(resolved)) {
-            res.writeHead(200, { "content-type": "application/javascript" });
-            res.end(`import '${to_fs(resolved.value)}';`);
-          } else {
-            res.writeHead(404);
-            res.end("not found");
-          }
-
-          return;
         }
 
         // we have to import `Server` before calling `set_assets`

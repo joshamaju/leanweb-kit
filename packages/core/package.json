@@ -30,10 +30,12 @@
     "@effect/data": "^0.15.1",
     "@effect/io": "^0.33.0",
     "@effect/schema": "^0.27.0",
+    "@vitejs/plugin-legacy": "^4.1.1",
     "cheerio": "1.0.0-rc.12",
     "dom-serializer": "^2.0.0",
     "domhandler": "^5.0.3",
     "effect": "2.0.0-next.17",
+    "esm-env": "^1.0.0",
     "fp-ts": "^2.16.0",
     "glob": "^10.3.3",
     "htmlparser2": "^9.0.0",
@@ -53,6 +55,10 @@
     "./vite": {
       "import": "./dist/vite/plugins/entry.js",
       "types": "./dist/vite/plugins/entry.d.ts"
+    },
+    "./node/polyfills": {
+      "import": "./dist/vite/node/polyfills.js",
+      "types": "./dist/vite/node/polyfills.d.ts"
     },
     "./runtime": {
       "import": "./dist/runtime/index.js",
