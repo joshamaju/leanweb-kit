@@ -9,6 +9,7 @@ Toolkit for the lean web
 ## Features
 
 - Use Svelte for templating with familiar express like router
+- Scoped css, build your apps with reusable components
 - Deploy anywhere, with adapters for different platforms. Currently supported Vercel and Node
 - Build websites/apps with modern DX (bundling, minifying etc) without sacrificing the user experience
 - Use only what you need, no unnecessary JavaScript sent to the client
@@ -27,7 +28,7 @@ Toolkit for the lean web
 
 - Imports in templates must always include the file extension. So
 
-```ts
+```html
 <script>
   import Component from "./component"
   import Enum from './types/enum'
@@ -36,7 +37,7 @@ Toolkit for the lean web
 
 will not work, it has to be
 
-```ts
+```html
 <script>
   import Component from "./component.html"
   import Enum from './types/enum.ts'
