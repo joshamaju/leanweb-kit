@@ -14,6 +14,11 @@ export interface Asset {
   type: string | null;
 }
 
+export interface View {
+  file: string;
+  name: string;
+}
+
 export interface BuildData {
   app_dir: string;
   assets: Asset[];

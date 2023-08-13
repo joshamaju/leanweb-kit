@@ -40,7 +40,7 @@ export const Config = S.object({
   paths: S.object({
     base: S.string().optional().default(""),
     assets: S.string().optional().default(""),
-    relative: S.string().optional(),
+    // relative: S.string().optional(),
   })
     .optional()
     .default({}),

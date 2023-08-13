@@ -1,2 +1,2 @@
-export { render } from "./render.js";
-export { renderView } from "./engine.js";
+export { render } from "./mod.js";
+export { Hono as Router } from "hono/quick";

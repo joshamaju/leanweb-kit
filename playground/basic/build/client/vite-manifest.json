@@ -1,0 +1,35 @@
+{
+  "_modulepreload-polyfill.3cfb730f.js": {
+    "file": "_app/immutable/chunks/modulepreload-polyfill.3cfb730f.js"
+  },
+  "src/views/pages/home/home.css": {
+    "file": "_app/immutable/assets/home.aaf4996d.css",
+    "src": "src/views/pages/home/home.css"
+  },
+  "src/views/pages/home/home.html": {
+    "css": [
+      "_app/immutable/assets/home.aaf4996d.css"
+    ],
+    "file": "_app/immutable/home.37d58918.js",
+    "imports": [
+      "_modulepreload-polyfill.3cfb730f.js"
+    ],
+    "isEntry": true,
+    "src": "src/views/pages/home/home.html"
+  },
+  "src/views/pages/main/index.css": {
+    "file": "_app/immutable/assets/index.35259be7.css",
+    "src": "src/views/pages/main/index.css"
+  },
+  "src/views/pages/main/index.html": {
+    "css": [
+      "_app/immutable/assets/index.35259be7.css"
+    ],
+    "file": "_app/immutable/index.bbdd9212.js",
+    "imports": [
+      "_modulepreload-polyfill.3cfb730f.js"
+    ],
+    "isEntry": true,
+    "src": "src/views/pages/main/index.html"
+  }
+}

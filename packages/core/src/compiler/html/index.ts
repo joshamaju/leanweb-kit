@@ -19,6 +19,14 @@ const rules_by_tag = pipe(
   })
 );
 
+function is_local_path(path: string) {
+  return (
+    !path.startsWith("http:") &&
+    !path.startsWith("https:") &&
+    !path.startsWith("//")
+  );
+}
+
 function walk_children(
   nodes: ChildNode[],
   visitor: (node: ChildNode) => ChildNode
@@ -40,6 +48,8 @@ export function transform(
 ): TE.TaskEither<Error, string> {
   return () =>
     new Promise((resume) => {
+      console.log("here");
+
       const handler = new DomHandler((error, dom) => {
         if (error) {
           resume(E.left(error));
@@ -56,10 +66,14 @@ export function transform(
 
                     const parsed = path.parse(filename);
 
-                    if (name === rule.attribute && value) {
+                    if (
+                      name === rule.attribute &&
+                      value &&
+                      is_local_path(value)
+                    ) {
                       const resolved = path.resolve(parsed.dir, value);
                       const source = path.relative(cwd, resolved);
-                      node.attribs[name] = `${value}?source=${source}`;
+                      node.attribs[name] = `${value}?s=${source}`;
                     }
                   }
                 }
@@ -69,7 +83,7 @@ export function transform(
             return node;
           });
 
-          resume(E.right(render(nodes)));
+          resume(E.right(render(nodes, { encodeEntities: false })));
         }
       });
 
