@@ -6,6 +6,5 @@ declare module "__GENERATED__/views.js" {
 }
 
 declare module "__GENERATED__/config.js" {
-  export const DEV: boolean;
   export const options: import("../types/internal.js").SSROptions;
 }

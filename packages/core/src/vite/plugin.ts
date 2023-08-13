@@ -345,11 +345,7 @@ export async function hono(user_config?: Config) {
     apply: "serve",
     name: "plugin-compile-dev",
     async transform(html, id, options) {
-      // console.log(id, options);
-
       if (html_file_regex.test(id)) {
-        // const no_svelte = svelte_modifier.strip(html, id);
-
         const program = pipe(
           transform(html, { cwd, filename: id }),
           TE.chainW((code) => {
@@ -359,23 +355,19 @@ export async function hono(user_config?: Config) {
             );
           }),
           TE.map((code) => {
-            const new_code = code.replace(vite_client_regex, () => "");
-
-            // return (
-            //   `<svelte:head><script type="module" src="/@vite/client"></script></svelte:head>` +
-            //   new_code
-            // );
-
-            return new_code;
+            /** Remove vite client just incase we have a component that has a svelte script with minimal html, cause
+             * there'll be no head for vite to inject the vite client script. Which means we'll have two script tags
+             * at the beginning of the file, which means the svelte compiler will throw an error
+             **/
+            return code.replace(vite_client_regex, () => "");
           }),
-          // TE.map((code) => svelte_modifier.restore(code, id)),
           TE.map((code) => compile(code, { generate: "ssr", filename: id })),
         );
 
         const result = await program();
 
         if (E.isLeft(result)) {
-          throw result;
+          throw result.left;
         }
 
         return result.right.js;
@@ -484,7 +476,6 @@ export async function hono(user_config?: Config) {
 
   // Remove the above obfuscator
   const restore_script: Plugin = {
-    // apply: "build",
     enforce: "post",
     name: "plugin-restore-svelte",
     transformIndexHtml(html, ctx) {
@@ -524,15 +515,6 @@ function resolve_config(config: ValidatedConfig) {
 
   return _config;
 }
-
-// export async function create_assets(config: ValidatedConfig) {
-//   const files = await glob("**/*", { cwd: config.files.assets });
-
-//   return files.map((file) => {
-//     const _path = path.resolve(config.files.assets, file);
-//     return { file, type: mime.getType(file), size: fs.statSync(_path).size };
-//   });
-// }
 
 function create_service_worker_module(config: ValidatedConfig) {
   const assets = Effect.runSync(create_assets(config));

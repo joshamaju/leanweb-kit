@@ -114,7 +114,7 @@ export function get_tsconfig(
 
   include.add(config_relative(`${test_folder}/**/*.js`));
   include.add(config_relative(`${test_folder}/**/*.ts`));
-  include.add(config_relative(`${test_folder}/**/*.svelte`));
+  include.add(config_relative(`${test_folder}/**/*.html`));
 
   const exclude = [config_relative("node_modules/**"), "./[!ambient.d.ts]**"];
 
