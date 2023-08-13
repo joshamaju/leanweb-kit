@@ -156,17 +156,18 @@ export async function dev(
   //   // sync.update(svelte_config, manifest_data, file);
   // });
 
+
   const { errorTemplate, serviceWorker } = config.files;
 
   // vite client only executes a full reload if the triggering html file path is index.html
   // kit defaults to src/app.html, so unless user changed that to index.html
   // send the vite client a full-reload event without path being set
   //   if (appTemplate !== "index.html") {
-  //     vite.watcher.on("change", (file) => {
-  //       if (file === appTemplate && !restarting) {
-  //         vite.ws.send({ type: "full-reload" });
-  //       }
-  //     });
+      // vite.watcher.on("change", (file) => {
+      //   if (file.startsWith(config.entry) && !restarting) {
+      //     vite.ws.send({ type: "full-reload" });
+      //   }
+      // });
   //   }
 
   vite.watcher.on("all", (_, file) => {

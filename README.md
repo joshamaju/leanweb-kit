@@ -8,17 +8,46 @@ Toolkit for the lean web
 
 ## Features
 
+- Hot Module Reload
 - Use Svelte for templating with familiar express like router
 - Scoped css, build your apps with reusable components
 - Deploy anywhere, with adapters for different platforms. Currently supported Vercel and Node
 - Build websites/apps with modern DX (bundling, minifying etc) without sacrificing the user experience
 - Use only what you need, no unnecessary JavaScript sent to the client
-- Get modern SPA features by using Turbolinks, HTMX etc
+- Modern SPA features by using Turbolinks, HTMX etc
 
 ## Examples
 
 - [Basic app](/playground/basic)
 - [Realworld app](/playground/realworldapp)
+
+## Project structure
+
+.
+└── app/
+    ├── src/
+    │   ├── views - your view templates/
+    │   │   ├── home.html
+    │   │   └── about.html
+    │   └── entry.ts - entry point for your application routes
+    ├── hono-mvc.d.ts
+    ├── vite.config.js
+    ├── package.json
+    └── tsconfig.json
+
+## Routing
+
+[link](https://hono.dev/api/routing)
+
+```ts
+import {render} from 'core/runtime'
+
+const app = new Router()
+
+app.get('/', () => render('home', {/* your template data (props) */}))
+
+// ...
+```
 
 ## Gotchas
 
@@ -26,7 +55,7 @@ Toolkit for the lean web
 
 - Svelte client side reactivity is not supported, we only send plain-old-html to the client
 
-- Imports in templates must always include the file extension. So
+- Imports in templates must always include the file extension. Writing
 
 ```html
 <script>

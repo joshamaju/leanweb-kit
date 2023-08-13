@@ -141,8 +141,6 @@ app.get("/editor/:slug?", async (ctx) => {
 app.post("/editor", async (ctx) => {
   const form = await ctx.req.formData();
 
-  console.log(form);
-
   return render("editor", {
     article: {
       body: "",
@@ -157,8 +155,10 @@ app.get("/settings", (ctx) => render("settings", { user: ctx.get("user") }));
 
 app.post("/settings", (ctx) => render("settings", { user: ctx.get("user") }));
 
-app.get("/@:user", async (ctx) => {
+app.get('/post/@/:title{[a-z]+}', async (ctx) => {
   const user = ctx.get("user");
+
+  console.log('profile', ctx.req.param())
 
   if (!user) return ctx.redirect("/login");
 
@@ -235,5 +235,7 @@ app.get("/articles/:slug", async (ctx) => {
 
   return render("article", { ...data, user });
 });
+
+app.showRoutes()
 
 export default app;
