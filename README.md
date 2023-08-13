@@ -8,7 +8,7 @@ Deploy anywhere, with adapters for different platforms. Currently supported Verc
 
 ## Examples
 
-[Realworld app](/playground/realworlapp)
+[Realworld app](/playground/realworldapp)
 
 ## Gotchas
 
