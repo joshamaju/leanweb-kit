@@ -3,6 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { ValidatedConfig } from "../config/schema.js";
 import { View } from "../types/internal.js";
+import {extensions} from '../utils/constants.js'
 
 import mime from "mime";
 
@@ -29,7 +30,7 @@ export function create_assets(config: ValidatedConfig) {
 export function collect_views(config: ValidatedConfig) {
   return pipe(
     Effect.try({
-      try: () => globSync("**/*.html", { cwd: config.views }),
+      try: () => globSync("**/*.{html,svx}", { cwd: config.views }),
       catch: () => new Error("GlobError: unable to scan files"),
     }),
     Effect.map(

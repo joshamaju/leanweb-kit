@@ -1,29 +1,28 @@
 import type { InputOption } from "rollup";
 import type {
   ConfigEnv,
+  Manifest,
   Plugin,
   ResolvedConfig,
   UserConfig,
   ViteDevServer,
-  Manifest,
 } from "vite";
 import * as vite from "vite";
 // import legacy from "@vitejs/plugin-legacy";
 
 import { compile } from "svelte/compiler";
+import { compile as compileSvx } from "mdsvex";
 
 import * as E from "fp-ts/lib/Either.js";
-// import * as O from "fp-ts/lib/Option.js";
 import * as TE from "fp-ts/lib/TaskEither.js";
 import { pipe } from "fp-ts/lib/function.js";
 
-import * as Effect from "@effect/io/Effect";
 import * as O from "@effect/data/Option";
+import * as Effect from "@effect/io/Effect";
 
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-import { glob } from "glob";
 import colors from "kleur";
 import mime from "mime";
 import { dedent } from "ts-dedent";
@@ -39,11 +38,10 @@ import { dev } from "./dev/index.js";
 import { get_env } from "./utils/env/load.js";
 import { create_static_module } from "./utils/env/resolve.js";
 import { assets_base, logger } from "./utils/index.js";
-// import { resolve_entry } from "./utils/resolve_entry.js";
-import { SvelteModifier } from "./utils/svelte_modifier.js";
 import { create_assets } from "../sync/write_views.js";
+import { VITE_HTML_PLACEHOLDER } from "../utils/constants.js";
 import { resolveEntry } from "../utils/utils.js";
-import {VITE_HTML_PLACEHOLDER} from "../utils/constants.js"
+import { SvelteModifier } from "./utils/svelte_modifier.js";
 
 class ConfigParseError {
   readonly _tag = "ConfigParseError";
@@ -57,11 +55,15 @@ class NoEntryFileError {
   readonly _tag = "NoEntryFileError";
 }
 
-const html_file_regex = /\.html$/;
+const html_file_regex = /\.(html|svx)$/;
+
+// const svx_file_regex = /\.svx/;
 
 const html_postfix_regex = /[?#].*$/s;
 
 const html_postfix = "?html-import";
+
+// const svx_postfix = "?svx-import";
 
 const vite_client_regex =
   /<script type="module" src="\/@vite\/client"><\/script>/g;
@@ -354,7 +356,28 @@ export async function hono(user_config?: Config) {
               (e) => new HTMLTransformError(),
             );
           }),
+          TE.chain((code) => {
+            console.log("svx: ", id);
+
+            return id.endsWith(".svx")
+              ? pipe(
+                  TE.tryCatch(
+                    () => compileSvx(code),
+                    (e) => new HTMLTransformError(),
+                  ),
+                  TE.map((_) => _?.code ?? code),
+                )
+              : TE.of(code);
+          }),
           TE.map((code) => {
+            // const n = compileSvx(code);
+
+            // n.then((m) => {
+            //   console.log("mdsvex: ", m);
+            // }).catch((err) => {
+            //   console.log("mdsvex: ", err);
+            // });
+
             /** Remove vite client just incase we have a component that has a svelte script with minimal html, cause
              * there'll be no head for vite to inject the vite client script. Which means we'll have two script tags
              * at the beginning of the file, which means the svelte compiler will throw an error
