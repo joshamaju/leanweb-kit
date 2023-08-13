@@ -1,18 +1,31 @@
-Experimental web application framework
+# Lean Web Kit
 
-> More like ruby on rails for JavaScript
+Toolkit for the lean web
 
-Build your UI with modern tools e.g svelte for templating and Hono for routing. Which put together give you the traditional express and view engine experience and with little or no complexity.
+> Ruby on rails for the modern web for JavaScript/Typescript developers
 
-Deploy anywhere, with adapters for different platforms. Currently supported Vercel and Node
+# 🚧 This project is still in the experimental stage. Do not use in production
+
+## Features
+
+- Use Svelte for templating with familiar express like router
+- Deploy anywhere, with adapters for different platforms. Currently supported Vercel and Node
+- Build websites/apps with modern DX (bundling, minifying etc) without sacrificing the user experience
+- Use only what you need, no unnecessary JavaScript sent to the client
+- Get modern SPA features by using Turbolinks, HTMX etc
 
 ## Examples
 
-[Realworld app](/playground/realworldapp)
+- [Basic app](/playground/basic)
+- [Realworld app](/playground/realworldapp)
 
 ## Gotchas
 
-Imports in svelte (.html) files must always include the file extension. So
+- Templating is done using svelte, but template files must use the .html file extension instead of .svelte
+
+- Svelte client side reactivity is not supported, we only send plain-old-html to the client
+
+- Imports in templates must always include the file extension. So
 
 ```ts
 <script>
