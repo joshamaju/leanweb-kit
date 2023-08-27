@@ -8,7 +8,7 @@ import * as Either from "@effect/data/Either";
 import * as O from "@effect/data/Option";
 import { constNull, pipe } from "@effect/data/Function";
 
-import { render } from "core/runtime";
+import { render } from "leanweb-kit/runtime";
 
 import { withApiUrl } from "./common/base-url.js";
 import {
@@ -17,7 +17,7 @@ import {
   getPersonalFeed,
 } from "./core/services/article.js";
 import { getPopularTags } from "./core/services/tag.js";
-import { login, register } from "./core/services/auth.js";
+import { login, register, updateUser } from "./core/services/auth.js";
 import { getCookie, setCookie } from "hono/cookie";
 import { Tab } from "./views/types/tab.js";
 import { withAuthToken } from "./common/with-token.js";
@@ -33,7 +33,7 @@ const app = new Hono<{ Variables: Variables }>();
 app.use("*", (ctx, next) => {
   const cookie = pipe(
     O.fromNullable(getCookie(ctx, "auth")),
-    O.match({ onNone: constNull, onSome: (_) => JSON.parse(_) })
+    O.match({ onNone: constNull, onSome: (_) => JSON.parse(_) }),
   );
 
   ctx.set("user", cookie);
@@ -50,7 +50,7 @@ app.post("/login", async (ctx) => {
     login(Object.fromEntries(form) as any),
     Http.provide(Fetch.adapter, withApiUrl),
     Effect.either,
-    Effect.runPromise
+    Effect.runPromise,
   );
 
   let errors = pipe(
@@ -62,7 +62,7 @@ app.post("/login", async (ctx) => {
           : { unknown: ["An unknown error occurred"] };
       },
       onRight: constNull,
-    })
+    }),
   );
 
   if (Either.isRight(data)) {
@@ -82,7 +82,7 @@ app.post("/register", async (ctx) => {
     register(Object.fromEntries(form) as any),
     Http.provide(Fetch.adapter, withApiUrl),
     Effect.either,
-    Effect.runPromise
+    Effect.runPromise,
   );
 
   let errors = pipe(
@@ -94,7 +94,7 @@ app.post("/register", async (ctx) => {
           : { unknown: ["An unknown error occurred"] };
       },
       onRight: constNull,
-    })
+    }),
   );
 
   // console.log(Object.fromEntries(form), data, errors);
@@ -125,7 +125,7 @@ app.get("/editor/:slug?", async (ctx) => {
       getArticle(slug),
       Effect.map((_) => _.article),
       Http.provide(Fetch.adapter, withApiUrl),
-      Effect.runPromise
+      Effect.runPromise,
     );
   }
 
@@ -153,12 +153,35 @@ app.post("/editor", async (ctx) => {
 
 app.get("/settings", (ctx) => render("settings", { user: ctx.get("user") }));
 
-app.post("/settings", (ctx) => render("settings", { user: ctx.get("user") }));
+app.post("/settings", async (ctx) => {
+  const form = await ctx.req.formData();
 
-app.get('/post/@/:title{[a-z]+}', async (ctx) => {
+  const result = await pipe(
+    updateUser(form),
+    Effect.flatMap((_) => {
+      return Effect.sync(() => {
+        setCookie(ctx, "auth", JSON.stringify(_.user));
+        return ctx.redirect("/");
+      });
+    }),
+    Effect.mapError((e) => {
+      return Effect.sync(() => {
+        return render("settings", {
+          user: ctx.get("user"),
+          errors: Either.isLeft(result) ? result.left : null,
+        });
+      });
+    }),
+    Http.provide(Fetch.adapter, withApiUrl),
+    Effect.either,
+    Effect.runPromise,
+  );
+});
+
+app.get("/post/@/:title{[a-z]+}", async (ctx) => {
   const user = ctx.get("user");
 
-  console.log('profile', ctx.req.param())
+  console.log("profile", ctx.req.param());
 
   if (!user) return ctx.redirect("/login");
 
@@ -187,13 +210,13 @@ app.get("/", async (ctx) => {
 
   const tab = pipe(
     O.fromNullable(search.get("tab")),
-    O.getOrElse(() => (user ? Tab.Personal : Tab.Global))
+    O.getOrElse(() => (user ? Tab.Personal : Tab.Global)),
   );
 
   const page = pipe(
     O.fromNullable(search.get("page")),
     O.map(parseFloat),
-    O.getOrElse(() => 1)
+    O.getOrElse(() => 1),
   );
 
   const articles = pipe(
@@ -201,19 +224,21 @@ app.get("/", async (ctx) => {
       ? getPersonalFeed({ offset: (page - 1) * 10 })
       : tab === Tab.Global
       ? getArticles({ offset: (page - 1) * 10 })
-      : getArticles({ offset: (page - 1) * 10, tag })
+      : getArticles({ offset: (page - 1) * 10, tag }),
   );
 
   const tags = pipe(
     getPopularTags(),
-    Effect.map((_) => _.tags)
+    Effect.map((_) => _.tags),
   );
 
   const data = await pipe(
     Effect.all({ articles, tags }),
     Http.provide(Fetch.adapter, withApiUrl, withAuthToken(user.token)),
-    Effect.runPromise
+    Effect.runPromise,
   );
+
+  console.log("data", data.articles);
 
   return render("home/index.html", {
     ...data.articles,
@@ -228,7 +253,7 @@ app.get("/articles/:slug", async (ctx) => {
   const data = await pipe(
     getArticle(ctx.req.param("slug")),
     Http.provide(Fetch.adapter, withApiUrl),
-    Effect.runPromise
+    Effect.runPromise,
   );
 
   const user = ctx.get("user");
@@ -236,6 +261,8 @@ app.get("/articles/:slug", async (ctx) => {
   return render("article", { ...data, user });
 });
 
-app.showRoutes()
+app.get("/markdown", () => render("markdown"));
+
+app.showRoutes();
 
 export default app;

@@ -1,4 +1,4 @@
-import { Adapter } from "core";
+import { Adapter } from "leanweb-kit";
 import "./ambient.js";
 
 declare global {

@@ -89,8 +89,7 @@ const plugin = function (defaults = {}) {
 
         builder.copy(`${files}/edge.js`, `${tmp}/edge.js`, {
           replace: {
-            SERVER: `${relativePath}/index.js`,
-            // MANIFEST: "./manifest.js",
+            SERVER: `${relativePath}/index.js`
           },
         });
 
@@ -182,7 +181,7 @@ function write(file, data) {
 }
 
 // This function is duplicated in adapter-static
-/** @param {import('core').Builder} builder */
+/** @param {import('leanweb-kit').Builder} builder */
 function static_vercel_config(builder) {
   return {
     version: 3,
@@ -201,7 +200,7 @@ function static_vercel_config(builder) {
 }
 
 /**
- * @param {import('core').Builder} builder
+ * @param {import('leanweb-kit').Builder} builder
  * @param {string} entry
  * @param {string} dir
  * @param {import('.').ServerlessConfig} config
@@ -330,7 +329,7 @@ async function create_function_bundle(builder, entry, dir, config) {
 
 /**
  *
- * @param {import('core').Builder} builder
+ * @param {import('leanweb-kit').Builder} builder
  * @param {any} vercel_config
  */
 function validate_vercel_json(builder, vercel_config) {

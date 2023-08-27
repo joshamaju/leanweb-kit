@@ -16,7 +16,7 @@
     "adapter-node": "workspace:*",
     "adapter-vercel": "workspace:*",
     "autoprefixer": "^10.4.14",
-    "core": "workspace:*",
+    "leanweb-kit": "workspace:*",
     "postcss": "^8.4.27",
     "sass": "^1.63.6",
     "tailwindcss": "^3.3.3",
@@ -26,7 +26,6 @@
   },
   "dependencies": {
     "@barba/core": "^2.9.7",
-    "@dogstudio/highway": "^2.2.1",
     "@hono/node-server": "^1.1.0",
     "hono": "^3.3.1",
     "svelte": "^4.0.5",

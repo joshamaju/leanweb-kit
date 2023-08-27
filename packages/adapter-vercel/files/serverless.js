@@ -1,4 +1,4 @@
-import { installPolyfills } from "core/node/polyfills";
+import { installPolyfills } from "leanweb-kit/node/polyfills";
 import { handle } from "@hono/node-server/vercel";
 
 import Server from "SERVER";

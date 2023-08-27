@@ -1,129 +1,225 @@
 import { load } from "cheerio";
 import { dedent } from "ts-dedent";
 
-
-import { pipe } from "@effect/data/Function";
 import * as A from "@effect/data/ReadonlyArray";
 import * as Effect from "@effect/io/Effect";
 
 import { options } from "__GENERATED__/config.js";
 import { views } from "__GENERATED__/views.js";
 import { VITE_CLIENT } from "../utils/constants.js";
-import { runtimeErrorTemplate } from "../utils/error.js";
+import { coalesce_to_error, runtimeErrorTemplate } from "../utils/error.js";
 
 class ModuleError {
-  readonly _tag = "ModuleLoadError";
+  readonly _tag = "ModuleError";
   constructor(
     readonly module: string,
-    readonly reason: string,
-    readonly originalError?: unknown,
+    readonly originalError: Error,
   ) {}
 }
 
-export async function render(view_name: string, props: object = {}) {
-  const possible_entries = [
-    view_name,
-    `${view_name}.html`,
-    `${view_name}/index.html`,
-  ];
+class RenderError {
+  readonly _tag = "RenderError";
+  constructor(
+    readonly module: string,
+    readonly originalError: Error,
+  ) {}
+}
 
-  const { error } = options.templates;
+const { error } = options.templates;
 
-  const program = pipe(
-    A.findFirst(possible_entries, (_) => _ in views),
-    Effect.flatMap((entry) => {
-      return pipe(
-        Effect.tryPromise({
-          try: () => views[entry](),
-          catch: (e) =>
-            new ModuleError(
-              entry,
-              `Unable to load module ${entry} for ${view_name}`,
-              e,
-            ),
-        }),
-        Effect.bindTo("component"),
-        Effect.bind("entry", () => Effect.succeed(entry)),
-      );
-    }),
-    Effect.flatMap(({ entry, component }) => {
-      return pipe(
-        Effect.try({
-          try: () => component.render(props),
-          catch: (e) => new ModuleError(entry, `RenderError: ${view_name}`, e),
-        }),
-        Effect.map((rendered) => {
-          const document = load(rendered.html);
-          const head = document("head");
+export async function renderToString(view: string, props: object = {}) {
+  const program = Effect.gen(function* ($) {
+    const entries = [
+      view,
+      `${view}.html`,
+      `${view}/index.html`,
+      `${view}.md.html`,
+      `${view}/index.md.html`,
+    ];
 
-          if (rendered.css.code) {
-            head.append(`<style>${rendered.css.code}</style>`);
-          }
+    const entry = yield* $(A.findFirst(entries, (entry) => entry in views));
 
-          if (rendered.head) {
-            head.append(rendered.head);
-          }
+    const component = yield* $(
+      Effect.tryPromise({
+        try: () => views[entry](),
+        catch: (e) => new RenderError(entry, coalesce_to_error(e)),
+      }),
+    );
 
-          if (__SVELTEKIT_DEV__) {
-            head.append('<script type="module" src="/@vite/client"></script>');
-          }
+    const rendered = yield* $(
+      Effect.try({
+        try: () => component.render(props),
+        catch: (e) => new RenderError(entry, coalesce_to_error(e)),
+      }),
+    );
 
-          if (options.service_worker) {
-            const opts = __SVELTEKIT_DEV__ ? ", { type: 'module' }" : "";
+    const document = load(rendered.html);
+    const head = document("head");
 
-            document("body").append(
-              dedent/* html */ `
-            <script>
-              if ('serviceWorker' in navigator) {
-                addEventListener('load', function() {
-                  navigator.serviceWorker.register('service-worker.js'${opts});
-                });
-              }
-            </script>`,
-            );
-          }
+    head.append(rendered.head)
 
-          return document.html();
-        }),
-      );
-    }),
+    if (rendered.css.code) {
+      head.append(`<style>${rendered.css.code}</style>`);
+    }
+
+    if (__LEANWEB_DEV__) {
+      head.append(VITE_CLIENT);
+    }
+
+    if (options.service_worker) {
+      const opts = __LEANWEB_DEV__ ? ", { type: 'module' }" : "";
+
+      document("body").append(dedent`
+        <script>
+        if ('serviceWorker' in navigator) {
+          addEventListener('load', function() {
+            navigator.serviceWorker.register('service-worker.js'${opts});
+          });
+        }
+        </script>`);
+    }
+
+    return document.html();
+  }).pipe(
     Effect.catchTag("NoSuchElementException", (e) => {
-      let html = error({ status: 404, message: e.message ?? "View not found" });
+      let html = error({
+        status: 404,
+        message: e.message ?? `View "${view}" not found in views directory`,
+      });
 
-      if (__SVELTEKIT_DEV__) {
+      if (__LEANWEB_DEV__) {
         const document = load(html);
-        const head = document("head");
-        head.append(VITE_CLIENT);
+        document("head").append(VITE_CLIENT);
         html = document.html();
       }
 
       return Effect.succeed(html);
     }),
-    Effect.catchTag("ModuleLoadError", (e) => {
-      const err = e.originalError as Error;
+    Effect.catchTag("RenderError", (e) => {
+      const err = e.originalError;
+      const message = err.message;
 
       let html;
 
-      if (__SVELTEKIT_DEV__) {
+      if (__LEANWEB_DEV__) {
         html = runtimeErrorTemplate({
+          ...e,
+          message,
           file: e.module,
           stack: err.stack ?? "",
-          message: err.message ?? e.reason,
         });
       } else {
-        const template = error({
-          status: 500,
-          message: err.message ?? e.reason,
-        });
-
-        const document = load(template);
-        const head = document("head");
-        head.append(VITE_CLIENT);
+        const document = load(error({ status: 500, message }));
+        document("head").append(VITE_CLIENT);
         html = document.html();
       }
 
       return Effect.succeed(html);
     }),
+    // Effect.catchAll((e) => {
+    //   console.log("catchAll: ", e);
+    //   return Effect.fail(e);
+    // }),
+  );
+
+  const html = await Effect.runPromise(program);
+
+  return html
+}
+
+export async function render(view: string, props: object = {}) {
+  const program = Effect.gen(function* ($) {
+    const entries = [
+      view,
+      `${view}.html`,
+      `${view}/index.html`,
+      `${view}.md.html`,
+      `${view}/index.md.html`,
+    ];
+
+    const entry = yield* $(A.findFirst(entries, (entry) => entry in views));
+
+    const component = yield* $(
+      Effect.tryPromise({
+        try: () => views[entry](),
+        catch: (e) => new RenderError(entry, coalesce_to_error(e)),
+      }),
+    );
+
+    const rendered = yield* $(
+      Effect.try({
+        try: () => component.render(props),
+        catch: (e) => new RenderError(entry, coalesce_to_error(e)),
+      }),
+    );
+
+    const document = load(rendered.html);
+    const head = document("head");
+
+    head.append(rendered.head)
+
+    if (rendered.css.code) {
+      head.append(`<style>${rendered.css.code}</style>`);
+    }
+
+    if (__LEANWEB_DEV__) {
+      head.append(VITE_CLIENT);
+    }
+
+    if (options.service_worker) {
+      const opts = __LEANWEB_DEV__ ? ", { type: 'module' }" : "";
+
+      document("body").append(dedent`
+        <script>
+        if ('serviceWorker' in navigator) {
+          addEventListener('load', function() {
+            navigator.serviceWorker.register('service-worker.js'${opts});
+          });
+        }
+        </script>`);
+    }
+
+    return document.html();
+  }).pipe(
+    Effect.catchTag("NoSuchElementException", (e) => {
+      let html = error({
+        status: 404,
+        message: e.message ?? `View "${view}" not found in views directory`,
+      });
+
+      if (__LEANWEB_DEV__) {
+        const document = load(html);
+        document("head").append(VITE_CLIENT);
+        html = document.html();
+      }
+
+      return Effect.succeed(html);
+    }),
+    Effect.catchTag("RenderError", (e) => {
+      const err = e.originalError;
+      const message = err.message;
+
+      let html;
+
+      if (__LEANWEB_DEV__) {
+        html = runtimeErrorTemplate({
+          ...e,
+          message,
+          file: e.module,
+          stack: err.stack ?? "",
+        });
+      } else {
+        const document = load(error({ status: 500, message }));
+        document("head").append(VITE_CLIENT);
+        html = document.html();
+      }
+
+      return Effect.succeed(html);
+    }),
+    // Effect.catchAll((e) => {
+    //   console.log("catchAll: ", e);
+    //   return Effect.fail(e);
+    // }),
   );
 
   const html = await Effect.runPromise(program);

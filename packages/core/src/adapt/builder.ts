@@ -1,10 +1,9 @@
 import {
-  createReadStream,
-  createWriteStream,
-  existsSync,
-  statSync,
+    createReadStream,
+    createWriteStream,
+    existsSync,
+    statSync,
 } from "node:fs";
-import { join } from "node:path";
 import { pipeline } from "node:stream";
 import { promisify } from "node:util";
 import * as zlib from "node:zlib";

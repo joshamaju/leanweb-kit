@@ -1,4 +1,4 @@
-import { Adapter } from "core";
+import { Adapter } from "leanweb-kit";
 
 export default function plugin(config?: Config): Adapter;
 

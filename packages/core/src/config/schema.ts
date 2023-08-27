@@ -17,7 +17,7 @@ export const Config = S.object({
 
   appDir: S.string().optional().default("_app"),
 
-  outDir: S.string().optional().default(".hono-mvc"),
+  outDir: S.string().optional().default(".leanweb"),
 
   env: S.object({
     privatePrefix: S.string().optional().default(""),
@@ -30,7 +30,6 @@ export const Config = S.object({
 
   files: S.object({
     assets: S.string().optional().default("static"),
-    appTemplate: S.string().optional().default(join("src", "app.html")),
     errorTemplate: S.string().optional().default(join("src", "error.html")),
     serviceWorker: S.string().optional().default(join("src", "service-worker")),
   })

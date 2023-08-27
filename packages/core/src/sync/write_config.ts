@@ -28,8 +28,8 @@ export function write_config(config: ValidatedConfig, output: string) {
       env_public_prefix: '${config.env.publicPrefix}',
       templates: {
         error: ({ status, message }) => ${JSON.stringify(error_page)
-          .replace(/%sveltekit\.status%/g, '" + status + "')
-          .replace(/%sveltekit\.error\.message%/g, '" + message + "')}
+          .replace(/%leanweb-kit\.status%/g, '" + status + "')
+          .replace(/%leanweb-kit\.error\.message%/g, '" + message + "')}
 	},
     };
     `

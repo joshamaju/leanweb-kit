@@ -1,4 +1,6 @@
 <script>
+  import { Tab } from "../../types/tab.ts";
+
   export let tags;
 </script>
 
@@ -7,7 +9,7 @@
 
   <div class="tag-list">
     {#each tags as tag}
-      <a href="/?tag={tag}" class="tag-pill tag-default">
+      <a href="/?tag={tag}&tab={Tab.Tag}" class="tag-pill tag-default">
         {tag}
       </a>
     {/each}

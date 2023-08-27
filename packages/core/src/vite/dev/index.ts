@@ -1,6 +1,6 @@
-import { ValidatedConfig } from "../../config/schema.js";
 import type { ResolvedConfig, ViteDevServer } from "vite";
 import { buildErrorMessage } from "vite";
+import { ValidatedConfig } from "../../config/schema.js";
 
 import color from "kleur";
 import * as fs from "node:fs";
@@ -11,7 +11,6 @@ import sirv from "sirv";
 import { Server } from "connect";
 import mime from "mime";
 
-import { load } from "cheerio";
 
 import { Hono } from "hono";
 
@@ -19,15 +18,13 @@ import * as O from "@effect/data/Option";
 import * as Effect from "@effect/io/Effect";
 
 import * as sync from "../../sync/index.js";
-import { Asset, View } from "../../types/internal.js";
 import { to_fs } from "../../utils/filesystem.js";
 import { should_polyfill } from "../../utils/platform.js";
+import { resolveEntry } from "../../utils/utils.js";
 import { getRequest, setResponse } from "../node/index.js";
 import { installPolyfills } from "../node/polyfills.js";
-import { resolveEntry } from "../../utils/utils.js";
 
-import {runtimeErrorTemplate} from '../../utils/error.js'
-import {VITE_CLIENT} from '../../utils/constants.js'
+import { coalesce_to_error } from '../../utils/error.js';
 
 const script_file_regex = /\.(js|ts)$/;
 
@@ -350,13 +347,6 @@ export async function dev(
       }
     });
   };
-}
-
-function coalesce_to_error(err: unknown) {
-  return err instanceof Error ||
-    (err && (err as any).name && (err as any).message)
-    ? (err as Error)
-    : new Error(JSON.stringify(err));
 }
 
 function remove_static_middlewares(server: Server) {

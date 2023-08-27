@@ -10,13 +10,14 @@ import type {
 import * as vite from "vite";
 // import legacy from "@vitejs/plugin-legacy";
 
+import { compile as compileSvx, mdsvex } from "mdsvex";
 import { compile } from "svelte/compiler";
-import { compile as compileSvx } from "mdsvex";
 
-import * as E from "fp-ts/lib/Either.js";
-import * as TE from "fp-ts/lib/TaskEither.js";
-import { pipe } from "fp-ts/lib/function.js";
+// import * as E from "fp-ts/lib/Either.js";
+// import { pipe } from "fp-ts/lib/function.js";
 
+import { pipe } from "@effect/data/Function";
+import * as E from "@effect/data/Either";
 import * as O from "@effect/data/Option";
 import * as Effect from "@effect/io/Effect";
 
@@ -27,21 +28,22 @@ import colors from "kleur";
 import mime from "mime";
 import { dedent } from "ts-dedent";
 
+import { coalesce_to_error } from "../utils/error.js";
 import { adapt } from "../adapt/index.js";
 import { transform } from "../compiler/html/index.js";
 import { Config, ValidatedConfig } from "../config/schema.js";
 import * as sync from "../sync/index.js";
+import { create_assets } from "../sync/write_views.js";
 import { Asset, BuildData, Env, View } from "../types/internal.js";
+import { VITE_HTML_PLACEHOLDER } from "../utils/constants.js";
 import { mkdirp, rimraf } from "../utils/filesystem.js";
+import { resolveEntry } from "../utils/utils.js";
 import { build_service_worker } from "./build/service_worker.js";
 import { dev } from "./dev/index.js";
+import { preview } from "./preview/index.js";
 import { get_env } from "./utils/env/load.js";
 import { create_static_module } from "./utils/env/resolve.js";
 import { assets_base, logger } from "./utils/index.js";
-import { create_assets } from "../sync/write_views.js";
-import { VITE_HTML_PLACEHOLDER } from "../utils/constants.js";
-import { resolveEntry } from "../utils/utils.js";
-import { SvelteModifier } from "./utils/svelte_modifier.js";
 
 class ConfigParseError {
   readonly _tag = "ConfigParseError";
@@ -49,26 +51,26 @@ class ConfigParseError {
 
 class HTMLTransformError {
   readonly _tag = "HTMLTransformError";
+  constructor(readonly originalError: Error) {}
+}
+
+class CompileError {
+  readonly _tag = "CompileError";
+  constructor(readonly originalError: Error) {}
 }
 
 class NoEntryFileError {
   readonly _tag = "NoEntryFileError";
 }
 
-const html_file_regex = /\.(html|svx)$/;
-
-// const svx_file_regex = /\.svx/;
+const html_file_regex = /\.html$/;
 
 const html_postfix_regex = /[?#].*$/s;
 
 const html_postfix = "?html-import";
 
-// const svx_postfix = "?svx-import";
-
 const vite_client_regex =
   /<script type="module" src="\/@vite\/client"><\/script>/g;
-
-const svelte_modifier = new SvelteModifier();
 
 const cwd = process.cwd();
 
@@ -78,7 +80,7 @@ let build_step: "client" | "server";
 
 let manifest: { assets: Asset[]; views: View[] };
 
-export async function hono(user_config?: Config) {
+export async function leanweb(user_config?: Config) {
   let vite_env_: ConfigEnv;
   let vite_server: ViteDevServer;
   let vite_config_: ResolvedConfig;
@@ -90,10 +92,10 @@ export async function hono(user_config?: Config) {
 
   const parsed_user_config = parse_config(user_config ?? ({} as Config));
 
-  const resolved_config = pipe(parsed_user_config, E.map(resolve_config));
+  const resolved_config = pipe(parsed_user_config, E.mapRight(resolve_config));
 
   if (E.isLeft(resolved_config)) {
-    throw new Error("Invalid config");
+    throw resolved_config.left;
   }
 
   const config = resolved_config.right;
@@ -108,7 +110,6 @@ export async function hono(user_config?: Config) {
 
   const entry_file = entry.value;
 
-  // const views_directory = config.views;
   const root_output_directory = config.outDir;
   const output_directory = `${root_output_directory}/output`;
 
@@ -130,6 +131,13 @@ export async function hono(user_config?: Config) {
     configureServer(server) {
       vite_server = server;
       return dev(server, vite_config_, config);
+    },
+    /**
+     * Adds the SvelteKit middleware to do SSR in preview mode.
+     * @see https://vitejs.dev/guide/api-plugin.html#configurepreviewserver
+     */
+    configurePreviewServer(vite) {
+      return preview(vite, vite_config_, config);
     },
     async config(vite_config, vite_config_env) {
       vite_env_ = vite_config_env;
@@ -160,7 +168,8 @@ export async function hono(user_config?: Config) {
         base: !ssr ? assets_base(config) : "./",
         ssr: { noExternal: ["hono", "svelte", "esm-env"] },
         define: {
-          __SVELTEKIT_DEV__: !is_build ? "true" : "false",
+          __LEANWEB_DEV__: !is_build ? "true" : "false",
+          __LEANWEB_ADAPTER_NAME__: s(config.adapter?.name),
         },
         server: {
           sourcemapIgnoreList,
@@ -346,48 +355,94 @@ export async function hono(user_config?: Config) {
   const compile_serve: Plugin = {
     apply: "serve",
     name: "plugin-compile-dev",
-    async transform(html, id, options) {
+    resolveId: {
+      order: "pre",
+      async handler(source, importer, options) {
+        if (importer && html_file_regex.test(source)) {
+          let res = await this.resolve(source, importer, {
+            skipSelf: true,
+            ...options,
+          });
+
+          // console.log("-------------");
+          // console.log("\nresolve id: ", source, importer, isMarkdown(source));
+          // console.log("-------------");
+
+          if (!res || res.external) return res;
+
+          if (isMarkdown(source)) {
+            const parsed = path.parse(importer);
+            const resolved = path.resolve(parsed.dir, source);
+            return resolved + html_postfix;
+          }
+        }
+      },
+    },
+    load(id) {
+      if (!id.endsWith(html_postfix)) return;
+      // console.log("-------------");
+      // console.log("load: ", id);
+      // console.log("-------------");
+      return fs.readFileSync(id.replace(html_postfix_regex, ""), "utf-8");
+    },
+    async transform(html, id_) {
+      // if (id.endsWith(html_postfix)) {
+      //   console.log("\ntransform: ", id, html);
+      // }
+
+      const id = id_.endsWith(html_postfix) ? id_.replace(html_postfix_regex, "") : id_;
+
       if (html_file_regex.test(id)) {
-        const program = pipe(
-          transform(html, { cwd, filename: id }),
-          TE.chainW((code) => {
-            return TE.tryCatch(
-              () => vite_server.transformIndexHtml(id, code),
-              (e) => new HTMLTransformError(),
-            );
-          }),
-          TE.chain((code) => {
-            console.log("svx: ", id);
-
-            return id.endsWith(".svx")
+        const program = Effect.gen(function* ($) {
+          const code = yield* $(
+            isMarkdown(id)
               ? pipe(
-                  TE.tryCatch(
-                    () => compileSvx(code),
-                    (e) => new HTMLTransformError(),
+                  Effect.tryPromise({
+                    try: () =>
+                      compileSvx(html, { filename: id, extensions: [".html"] }),
+                    catch: (e) => new CompileError(coalesce_to_error(e)),
+                  }),
+                  Effect.flatMap(O.fromNullable),
+                  Effect.map((_) => _.code),
+                  Effect.catchTag("NoSuchElementException", () =>
+                    Effect.succeed(html),
                   ),
-                  TE.map((_) => _?.code ?? code),
                 )
-              : TE.of(code);
-          }),
-          TE.map((code) => {
-            // const n = compileSvx(code);
+              : Effect.succeed(html),
+          );
 
-            // n.then((m) => {
-            //   console.log("mdsvex: ", m);
-            // }).catch((err) => {
-            //   console.log("mdsvex: ", err);
-            // });
+          // console.log("\ntransform: ", id, code);
 
-            /** Remove vite client just incase we have a component that has a svelte script with minimal html, cause
-             * there'll be no head for vite to inject the vite client script. Which means we'll have two script tags
-             * at the beginning of the file, which means the svelte compiler will throw an error
-             **/
-            return code.replace(vite_client_regex, () => "");
-          }),
-          TE.map((code) => compile(code, { generate: "ssr", filename: id })),
-        );
+          const trnx_code = yield* $(transform(code, { cwd, filename: id }));
 
-        const result = await program();
+          const vite_html = yield* $(
+            Effect.tryPromise({
+              try: () => vite_server.transformIndexHtml(id, trnx_code),
+              catch: (e) => new HTMLTransformError(coalesce_to_error(e)),
+            }),
+          );
+
+          /** Remove vite client just incase we have a component that has a svelte script with minimal html, cause
+           * there'll be no head for vite to inject the vite client script. Which means we'll have two script tags
+           * at the beginning of the file, which means the svelte compiler will throw an error
+           **/
+          const without_vite_client = vite_html.replace(
+            vite_client_regex,
+            () => "",
+          );
+
+          const component = yield* $(
+            Effect.try({
+              try: () =>
+                compile(without_vite_client, { generate: "ssr", filename: id }),
+              catch: (e) => new CompileError(coalesce_to_error(e)),
+            }),
+          );
+
+          return component;
+        });
+
+        const result = await pipe(program, Effect.either, Effect.runPromise);
 
         if (E.isLeft(result)) {
           throw result.left;
@@ -408,6 +463,10 @@ export async function hono(user_config?: Config) {
           skipSelf: true,
           ...options,
         });
+
+        // console.log("-------------");
+        // console.log("\ntransform: ", source, importer, res);
+        // console.log("-------------");
 
         if (!res || res.external) return res;
 
@@ -474,25 +533,59 @@ export async function hono(user_config?: Config) {
       if (!id.endsWith(html_postfix)) return;
       return fs.readFileSync(id.replace(html_postfix_regex, ""), "utf-8");
     },
-    transform(code, id) {
+    async transform(code, id) {
       if (!id.endsWith(html_postfix)) return;
-      const res = compile(code, { generate: "ssr", filename: id });
+
+      const clean_id = id.replace(html_postfix_regex, "");
+
+      let code_ = code;
+
+      if (isMarkdown(clean_id)) {
+        const result = await compileSvx(code_, { filename: clean_id });
+
+        // console.log("-------------");
+        // console.log("markdown: ", clean_id, code_, code, result);
+        // console.log("-------------");
+
+        if (result) code_ = result.code;
+      }
+
+      const res = compile(code_, { generate: "ssr", filename: clean_id });
       return res.js;
     },
   };
 
+  // const strip_svelte: Plugin = {
+  //   // apply: "build",
+  //   name: "plugin-strip-svelte",
+  //   transformIndexHtml: {
+  //     order: "pre",
+  //     async handler(html, ctx) {
+  //       const { name } = path.parse(ctx.filename);
+
+  //       let code = html;
+
+  //       if (name.endsWith(".svx")) {
+  //         const result = await compileSvx(code);
+  //         if (result) code = result.code;
+  //       }
+
+  //       return `
+  //       ${VITE_HTML_PLACEHOLDER}
+  //       ${code}
+  //       `;
+  //     },
+  //   },
+  // };
+
   // Add an obfuscator so that vite's html parser doesn't error when it sees a script tag
   // at the beginning of the document
   const strip_svelte: Plugin = {
-    // apply: "build",
     name: "plugin-strip-svelte",
     transformIndexHtml: {
       order: "pre",
-      handler(html, ctx) {
-        return `
-        ${VITE_HTML_PLACEHOLDER}
-        ${html}
-        `;
+      handler(html) {
+        return `${VITE_HTML_PLACEHOLDER}\n${html}`;
       },
     },
   };
@@ -501,8 +594,8 @@ export async function hono(user_config?: Config) {
   const restore_script: Plugin = {
     enforce: "post",
     name: "plugin-restore-svelte",
-    transformIndexHtml(html, ctx) {
-      return html.replace(VITE_HTML_PLACEHOLDER, "");
+    transformIndexHtml(html) {
+      return html.replace(`${VITE_HTML_PLACEHOLDER}\n`, "");
     },
   };
 
@@ -518,6 +611,11 @@ export async function hono(user_config?: Config) {
   ];
 }
 
+function isMarkdown(filename: string) {
+  const { name } = path.parse(filename);
+  return name.endsWith(".md");
+}
+
 function parse_config(config: Config) {
   const result = Config.safeParse(config);
   return result.success
@@ -527,6 +625,7 @@ function parse_config(config: Config) {
 
 function resolve_config(config: ValidatedConfig) {
   const _config = { ...config };
+
   _config.entry = path.join(cwd, config.entry);
   _config.views = path.join(cwd, config.views);
   _config.outDir = path.join(cwd, config.outDir);

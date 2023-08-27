@@ -11,7 +11,7 @@ export default [
 			format: 'esm'
 		},
 		plugins: [nodeResolve({ preferBuiltins: true }), commonjs(), json()],
-		external: ['ENV', 'HANDLER', ...builtinModules]
+		external: ['ENV', ...builtinModules]
 	},
 	{
 		input: 'src/env.js',
@@ -20,17 +20,7 @@ export default [
 			format: 'esm'
 		},
 		plugins: [nodeResolve(), commonjs(), json()],
-		external: ['HANDLER', ...builtinModules]
-	},
-	{
-		input: 'src/handler.js',
-		output: {
-			file: 'files/handler.js',
-			format: 'esm',
-			inlineDynamicImports: true
-		},
-		plugins: [nodeResolve(), commonjs(), json()],
-		external: ['ENV', 'MANIFEST', 'SERVER', 'SHIMS', ...builtinModules]
+		external: [...builtinModules]
 	},
 	{
 		input: 'src/shims.js',

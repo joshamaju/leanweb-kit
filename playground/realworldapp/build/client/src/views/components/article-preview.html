@@ -1,8 +1,7 @@
-
-        
-        <script>
+<script>
   import TagList from "./tag-list.html";
   import FormattedDate from "./formatted-date.html";
+  import FavoriteButton from './favorite-button.html'
 
   export let article;
 </script>
@@ -21,7 +20,7 @@
       <FormattedDate date="{article.createdAt}" />
     </div>
 
-    <!-- <FavoriteButton {article} /> -->
+    <FavoriteButton {article} />
   </div>
 
   <a href="/articles/{article.slug}" class="preview-link">
@@ -31,5 +30,3 @@
     <TagList tags="{article.tagList}" />
   </a>
 </div>
-
-        

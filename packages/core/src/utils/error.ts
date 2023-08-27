@@ -120,6 +120,7 @@ export const runtimeErrorTemplate = (err: {
 				font-family: var(--monospace);
 				line-height: 1.5;
 				width: 800px;
+				max-height: 80vh;
 				color: var(--window-color);
 				margin: 30px auto;
 				padding: 25px 40px;
@@ -127,7 +128,7 @@ export const runtimeErrorTemplate = (err: {
 				background: var(--window-background);
 				border-radius: 6px 6px 8px 8px;
 				box-shadow: 0 19px 38px rgba(0,0,0,0.30), 0 15px 12px rgba(0,0,0,0.22);
-				overflow: hidden;
+				overflow: auto;
 				border-top: 8px solid var(--red);
 				direction: ltr;
 				text-align: left;
@@ -138,7 +139,7 @@ export const runtimeErrorTemplate = (err: {
 				font-size: 16px;
 				margin-top: 0;
 				margin-bottom: 1em;
-				overflow-x: scroll;
+				overflow: scroll;
 				scrollbar-width: none;
 			}
 
@@ -192,3 +193,10 @@ export const runtimeErrorTemplate = (err: {
 	</body>
 </html>
 `;
+
+export function coalesce_to_error(err: unknown) {
+  return err instanceof Error ||
+    (err && (err as any).name && (err as any).message)
+    ? (err as Error)
+    : new Error(JSON.stringify(err));
+}

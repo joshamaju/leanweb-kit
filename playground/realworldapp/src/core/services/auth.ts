@@ -32,9 +32,9 @@ export function login(credentials: LoginCredentials) {
           try: () => e.response.json() as Promise<ErrorResponse>,
           catch: () => new Error("JSONDecodeError"),
         }),
-        Effect.flatMap(Effect.fail)
+        Effect.flatMap(Effect.fail),
       );
-    })
+    }),
   );
 }
 
@@ -49,20 +49,25 @@ export function register(credentials: RegisterCredentials) {
           try: () => e.response.json() as Promise<ErrorResponse>,
           catch: () => new Error("JSONDecodeError"),
         }),
-        Effect.flatMap(Effect.fail)
+        Effect.flatMap(Effect.fail),
       );
-    })
+    }),
   );
 }
-export async function getCurrentUser() {
+
+export function getCurrentUser() {
   return pipe(
     Http.get("/user"),
     Res.filterStatusOk(),
     Res.toJson(),
-    S.parse(User)
+    S.parse(User),
   );
 }
 
-export async function updateUser(user: unknown) {
-  return pipe(Http.put("/user", json({ user })), Res.filterStatusOk());
+export function updateUser(user: unknown) {
+  return pipe(
+    Http.put("/user", json({ user })),
+    Res.filterStatusOk(),
+    Res.toJson<{ user: User }>(),
+  );
 }

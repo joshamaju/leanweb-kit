@@ -8,10 +8,7 @@
 		"moduleResolution": "node",
 		"module": "es2022",
 		"target": "es2017",
-		"baseUrl": ".",
-		"paths": {
-			"@sveltejs/kit": ["../kit/types/index"]
-		}
+		"baseUrl": "."
 	},
 	"include": ["index.js", "src/**/*.js", "ambient.d.ts"]
 }

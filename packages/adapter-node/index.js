@@ -68,8 +68,6 @@ export default function (opts = {}) {
       builder.copy(files, out, {
         replace: {
           ENV: "./env.js",
-          // HANDLER: './handler.js',
-          // MANIFEST: './server/manifest.js',
           SHIMS: "./shims.js",
           SERVER: "./server/index.js",
           ENV_PREFIX: JSON.stringify(envPrefix),

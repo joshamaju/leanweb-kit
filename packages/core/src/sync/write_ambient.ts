@@ -1,15 +1,14 @@
-import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import { GENERATED_COMMENT } from "../utils/constants.js";
-import {
-  create_dynamic_types,
-  create_static_types,
-} from "../vite/utils/env/resolve.js";
-import { get_env } from "../vite/utils/env/load.js";
 import { ValidatedConfig } from "../config/schema.js";
-import { write_if_changed } from "./utils.js";
 import { Env } from "../types/internal.js";
+import { GENERATED_COMMENT } from "../utils/constants.js";
+import { get_env } from "../vite/utils/env/load.js";
+import {
+    create_dynamic_types,
+    create_static_types,
+} from "../vite/utils/env/resolve.js";
+import { write_if_changed } from "./utils.js";
 
 // TODO these types should be described in a neutral place, rather than
 // inside either `packages/kit` or `kit.svelte.dev`

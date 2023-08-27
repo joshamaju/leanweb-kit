@@ -1,11 +1,18 @@
 {
-  "name": "core",
-  "version": "1.0.0",
-  "description": "",
+  "name": "leanweb-kit",
+  "version": "1.0.1",
+  "description": "Tools for building better web sites/applications",
   "type": "module",
+  "homepage": "https://github.com/joshamaju/hono-mvc",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/joshamaju/hono-mvc",
+    "directory": "packages/core"
+  },
   "scripts": {
     "dev": "tsc --w",
-    "build": "tsc"
+    "build": "tsc",
+    "prepublish": "rimraf dist && pnpm build"
   },
   "keywords": [],
   "author": "Joshua Amaju",
@@ -17,6 +24,7 @@
     "@types/set-cookie-parser": "^2.4.3",
     "connect": "^3.7.0",
     "hono": "^3.3.1",
+    "rimraf": "^5.0.0",
     "rollup": "^3.26.3",
     "typescript": "^5.1.6",
     "vite": "^4.4.4"
