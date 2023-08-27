@@ -81,6 +81,8 @@ will not work, it has to be
 ```bash
 mkdir project-name
 cd project-name
+npm init -y
+npm i leanweb-kit vite svelte
 touch vite.config.js
 ```
 
