@@ -1,8 +1,8 @@
 # Lean Web Kit
 
-Toolkit for the lean web
+Toolkit for a lean web
 
-> Ruby on rails for the modern web for JavaScript/Typescript developers
+> Express like router for the modern web
 
 # 🚧 This project is still in the experimental stage. Do not use in production
 
@@ -31,7 +31,7 @@ Toolkit for the lean web
     │   │   ├── home.html
     │   │   └── about.html
     │   └── entry.ts - entry point for your application routes
-    ├── hono-mvc.d.ts
+    ├── leanweb.d.ts
     ├── vite.config.js
     ├── package.json
     └── tsconfig.json
@@ -41,7 +41,7 @@ Toolkit for the lean web
 [link](https://hono.dev/api/routing)
 
 ```ts
-import {render} from 'core/runtime'
+import {render} from 'leanweb-kit/runtime'
 
 const app = new Router()
 
@@ -106,7 +106,7 @@ touch home.html
 > entry.ts
 
 ```js
-import {Router} from 'leanweb-kit';
+import {Router} from 'leanweb-kit/runtime';
 
 const app = new Router();
 
@@ -138,7 +138,7 @@ npm run dev
 npm run build
 ```
 
-#### Preview production build
+### Preview production build
 
 ```bash
 npm run preview
