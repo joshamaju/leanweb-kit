@@ -63,7 +63,6 @@ const plugin = function (defaults = {}) {
         builder.copy(`${files}/serverless.js`, `${tmp}/index.js`, {
           replace: {
             SERVER: `${relativePath}/index.js`,
-            // MANIFEST: "./manifest.js",
           },
         });
 

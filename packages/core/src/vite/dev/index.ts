@@ -11,7 +11,6 @@ import sirv from "sirv";
 import { Server } from "connect";
 import mime from "mime";
 
-
 import { Hono } from "hono";
 
 import * as O from "@effect/data/Option";
@@ -21,10 +20,10 @@ import * as sync from "../../sync/index.js";
 import { to_fs } from "../../utils/filesystem.js";
 import { should_polyfill } from "../../utils/platform.js";
 import { resolveEntry } from "../../utils/utils.js";
-import { getRequest, setResponse } from "../node/index.js";
-import { installPolyfills } from "../node/polyfills.js";
+import { getRequest, setResponse } from "../../node/index.js";
+import { installPolyfills } from "../../node/polyfills.js";
 
-import { coalesce_to_error } from '../../utils/error.js';
+import { coalesce_to_error } from "../../utils/error.js";
 
 const script_file_regex = /\.(js|ts)$/;
 
@@ -122,7 +121,7 @@ export async function dev(
 
   const watch = (event: string, cb: (file: string) => void) => {
     vite.watcher.on(event, (file) => {
-      if (file.startsWith(config.views + path.sep)) {
+      if (file.startsWith(config.files.views + path.sep)) {
         cb(file);
       }
     });
@@ -153,22 +152,21 @@ export async function dev(
   //   // sync.update(svelte_config, manifest_data, file);
   // });
 
-
-  const { errorTemplate, serviceWorker } = config.files;
+  const { serviceWorker } = config.files;
 
   // vite client only executes a full reload if the triggering html file path is index.html
   // kit defaults to src/app.html, so unless user changed that to index.html
   // send the vite client a full-reload event without path being set
   //   if (appTemplate !== "index.html") {
-      // vite.watcher.on("change", (file) => {
-      //   if (file.startsWith(config.entry) && !restarting) {
-      //     vite.ws.send({ type: "full-reload" });
-      //   }
-      // });
+  // vite.watcher.on("change", (file) => {
+  //   if (file.startsWith(config.entry) && !restarting) {
+  //     vite.ws.send({ type: "full-reload" });
+  //   }
+  // });
   //   }
 
   vite.watcher.on("all", (_, file) => {
-    if (file === errorTemplate || file.startsWith(serviceWorker)) {
+    if (file.startsWith(serviceWorker)) {
       sync.config(config);
     }
   });
@@ -251,6 +249,8 @@ export async function dev(
 
         const decoded = decodeURI(new URL(base + req.url).pathname);
 
+        console.log(decoded);
+
         if (!decoded.startsWith(config.paths.base)) {
           res.statusCode = 404;
 
@@ -262,6 +262,8 @@ export async function dev(
 
           return;
         }
+
+        const url = new URL(base + req.url);
 
         if (decoded === config.paths.base + "/service-worker.js") {
           const resolved = Effect.runSync(
@@ -278,8 +280,6 @@ export async function dev(
 
           return;
         }
-
-        const url = new URL(base + req.url);
 
         const source = url.searchParams.get("s");
 
@@ -317,7 +317,7 @@ export async function dev(
           }
         }
 
-        const module = await vite.ssrLoadModule(config.entry);
+        const module = await vite.ssrLoadModule(config.files.entry);
 
         const server = module.default as Hono;
 
@@ -343,7 +343,7 @@ export async function dev(
       } catch (e) {
         const error = coalesce_to_error(e);
         res.statusCode = 500;
-        res.end(fix_stack_trace(error.stack!))
+        res.end(fix_stack_trace(error.stack!));
       }
     });
   };

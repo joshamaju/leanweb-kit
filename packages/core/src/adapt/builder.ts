@@ -1,29 +1,23 @@
 import {
-    createReadStream,
-    createWriteStream,
-    existsSync,
-    statSync,
+  createReadStream,
+  createWriteStream,
+  existsSync,
+  statSync,
 } from "node:fs";
 import { pipeline } from "node:stream";
 import { promisify } from "node:util";
 import * as zlib from "node:zlib";
 
+import { glob } from "glob";
+
 import { ValidatedConfig } from "../config/schema.js";
 import { BuildData, Builder, Logger } from "../types/internal.js";
 import { copy, mkdirp, rimraf } from "../utils/filesystem.js";
+import { resolve } from "node:path";
 
 const pipe = promisify(pipeline);
 
-const extensions = [
-  ".html",
-  ".js",
-  ".mjs",
-  ".json",
-  ".css",
-  ".svg",
-  ".xml",
-  ".wasm",
-];
+const extensions = ["html", "js", "mjs", "json", "css", "svg", "xml", "wasm"];
 
 export function create_builder({
   log,
@@ -47,30 +41,19 @@ export function create_builder({
         return;
       }
 
-      //   const files = list_files(directory, (file) =>
-      //     extensions.includes(extname(file))
-      //   ).map((file) => resolve(directory, file));
+      const files = await glob(`**/*.{${extensions.join(",")}}`, {
+        cwd: directory,
+        ignore: ["vite-manifest.json"],
+      });
 
-      //   await Promise.all(
-      //     files.flatMap((file) => [
-      //       compress_file(file, "gz"),
-      //       compress_file(file, "br"),
-      //     ])
-      //   );
-    },
+      const files_ = files.map((file) => resolve(directory, file));
 
-    generateManifest: ({ relativePath }) => {
-      //   return generate_manifest({
-      //     build_data,
-      //     relative_path: relativePath,
-      //     routes: subset
-      //       ? subset.map((route) =>
-      //           /** @type {import('types').RouteData} */ lookup.get(route)
-      //         )
-      //       : route_data.filter((route) => prerender_map.get(route.id) !== true),
-      //   });
-
-      return "";
+      await Promise.all(
+        files_.flatMap((file) => [
+          compress_file(file, "gz"),
+          compress_file(file, "br"),
+        ])
+      );
     },
 
     getBuildDirectory(name) {

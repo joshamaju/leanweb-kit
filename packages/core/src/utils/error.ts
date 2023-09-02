@@ -1,202 +1,207 @@
-import { VITE_CLIENT } from "./constants.js";
+// import { VITE_CLIENT } from "./constants.js";
 
-export const defaultErrorTemplate = /* html */ `
-<!DOCTYPE html>
-<html lang="en">
-    <head>
-        <meta charset="utf-8" />
-        <title>%sveltekit.error.message%</title>
-        
-        <style>
-            body {
-                --bg: white;
-                --fg: #222;
-				--divider: #ccc;
-				background: var(--bg);
-				color: var(--fg);
-				font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
-					Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-				display: flex;
-				align-items: center;
-				justify-content: center;
-				height: 100vh;
-				margin: 0;
-			}
+// export const defaultErrorTemplate = /* html */ `
+// <!DOCTYPE html>
+// <html lang="en">
+//     <head>
+//         <meta charset="utf-8" />
+//         <title>%sveltekit.error.message%</title>
 
-			.error {
-				display: flex;
-				align-items: center;
-				max-width: 32rem;
-				margin: 0 1rem;
-			}
+//         <style>
+//             body {
+//                 --bg: white;
+//                 --fg: #222;
+// 				--divider: #ccc;
+// 				background: var(--bg);
+// 				color: var(--fg);
+// 				font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+// 					Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+// 				display: flex;
+// 				align-items: center;
+// 				justify-content: center;
+// 				height: 100vh;
+// 				margin: 0;
+// 			}
 
-			.status {
-				font-weight: 200;
-				font-size: 3rem;
-				line-height: 1;
-				position: relative;
-				top: -0.05rem;
-			}
+// 			.error {
+// 				display: flex;
+// 				align-items: center;
+// 				max-width: 32rem;
+// 				margin: 0 1rem;
+// 			}
 
-			.message {
-				border-left: 1px solid var(--divider);
-				padding: 0 0 0 1rem;
-				margin: 0 0 0 1rem;
-				min-height: 2.5rem;
-				display: flex;
-				align-items: center;
-			}
+// 			.status {
+// 				font-weight: 200;
+// 				font-size: 3rem;
+// 				line-height: 1;
+// 				position: relative;
+// 				top: -0.05rem;
+// 			}
 
-			.message h1 {
-				font-weight: 400;
-				font-size: 1em;
-				margin: 0;
-			}
+// 			.message {
+// 				border-left: 1px solid var(--divider);
+// 				padding: 0 0 0 1rem;
+// 				margin: 0 0 0 1rem;
+// 				min-height: 2.5rem;
+// 				display: flex;
+// 				align-items: center;
+// 			}
 
-			@media (prefers-color-scheme: dark) {
-				body {
-					--bg: #222;
-					--fg: #ddd;
-					--divider: #666;
-				}
-			}
-        </style>
-	</head>
-	<body>
-		<div class="error">
-			<span class="status">%sveltekit.status%</span>
-			<div class="message">
-				<h1>%sveltekit.error.message%</h1>
-			</div>
-		</div>
-	</body>
-</html>
-`;
+// 			.message h1 {
+// 				font-weight: 400;
+// 				font-size: 1em;
+// 				margin: 0;
+// 			}
 
-export const runtimeErrorTemplate = (err: {
-	stack: string;
-	file: string;
-	message: string;
-}) => /*html*/ `
-<!DOCTYPE html>
-<html lang="en">
-	<head>
-		<meta charset="UTF-8" />
-		<title>Error</title>
+// 			@media (prefers-color-scheme: dark) {
+// 				body {
+// 					--bg: #222;
+// 					--fg: #ddd;
+// 					--divider: #666;
+// 				}
+// 			}
+//         </style>
+// 	</head>
+// 	<body>
+// 		<div class="error">
+// 			<span class="status">%sveltekit.status%</span>
+// 			<div class="message">
+// 				<h1>%sveltekit.error.message%</h1>
+// 			</div>
+// 		</div>
+// 	</body>
+// </html>
+// `;
 
-		${VITE_CLIENT}
+// export const runtimeErrorTemplate = (err: {
+//   stack: string;
+//   file: string;
+//   message: string;
+// }) => /*html*/ `
+// <!DOCTYPE html>
+// <html lang="en">
+// 	<head>
+// 		<meta charset="UTF-8" />
+// 		<title>Error</title>
 
-		<style>
-			html, body {
-				margin: 0;
-				height: 100%;
-				line-height: 1.5;
-			}
+// 		${VITE_CLIENT}
 
-			body {
-				background-color: #222;
-			}
+// 		<style>
+// 			html, body {
+// 				margin: 0;
+// 				height: 100%;
+// 				line-height: 1.5;
+// 			}
 
-			:root {
-				position: fixed;
-				top: 0;
-				left: 0;
-				width: 100%;
-				height: 100%;
-				z-index: 99999;
-				--monospace: 'SFMono-Regular', Consolas,
-				'Liberation Mono', Menlo, Courier, monospace;
-				--red: #ff5555;
-				--yellow: #e2aa53;
-				--purple: #cfa4ff;
-				--cyan: #2dd9da;
-				--dim: #c9c9c9;
+// 			body {
+// 				background-color: #222;
+// 			}
 
-				--window-background: #181818;
-				--window-color: #d8d8d8;
-			}
+// 			:root {
+// 				position: fixed;
+// 				top: 0;
+// 				left: 0;
+// 				width: 100%;
+// 				height: 100%;
+// 				z-index: 99999;
+// 				--monospace: 'SFMono-Regular', Consolas,
+// 				'Liberation Mono', Menlo, Courier, monospace;
+// 				--red: #ff5555;
+// 				--yellow: #e2aa53;
+// 				--purple: #cfa4ff;
+// 				--cyan: #2dd9da;
+// 				--dim: #c9c9c9;
 
-			.window {
-				font-family: var(--monospace);
-				line-height: 1.5;
-				width: 800px;
-				max-height: 80vh;
-				color: var(--window-color);
-				margin: 30px auto;
-				padding: 25px 40px;
-				position: relative;
-				background: var(--window-background);
-				border-radius: 6px 6px 8px 8px;
-				box-shadow: 0 19px 38px rgba(0,0,0,0.30), 0 15px 12px rgba(0,0,0,0.22);
-				overflow: auto;
-				border-top: 8px solid var(--red);
-				direction: ltr;
-				text-align: left;
-			}
+// 				--window-background: #181818;
+// 				--window-color: #d8d8d8;
+// 			}
 
-			pre {
-				font-family: var(--monospace);
-				font-size: 16px;
-				margin-top: 0;
-				margin-bottom: 1em;
-				overflow: scroll;
-				scrollbar-width: none;
-			}
+// 			.window {
+// 				font-family: var(--monospace);
+// 				line-height: 1.5;
+// 				width: 800px;
+// 				max-height: 80vh;
+// 				color: var(--window-color);
+// 				margin: 30px auto;
+// 				padding: 25px 40px;
+// 				position: relative;
+// 				background: var(--window-background);
+// 				border-radius: 6px 6px 8px 8px;
+// 				box-shadow: 0 19px 38px rgba(0,0,0,0.30), 0 15px 12px rgba(0,0,0,0.22);
+// 				overflow: auto;
+// 				border-top: 8px solid var(--red);
+// 				direction: ltr;
+// 				text-align: left;
+// 			}
 
-			pre::-webkit-scrollbar {
-				display: none;
-			}
+// 			pre {
+// 				font-family: var(--monospace);
+// 				font-size: 16px;
+// 				margin-top: 0;
+// 				margin-bottom: 1em;
+// 				overflow: scroll;
+// 				scrollbar-width: none;
+// 			}
 
-			.message {
-				line-height: 1.3;
-				font-weight: 600;
-				white-space: pre-wrap;
-			}
+// 			pre::-webkit-scrollbar {
+// 				display: none;
+// 			}
 
-			.message-body {
-				color: var(--red);
-			}
+// 			.message {
+// 				line-height: 1.3;
+// 				font-weight: 600;
+// 				white-space: pre-wrap;
+// 			}
 
-			.file {
-				color: var(--cyan);
-				margin-bottom: 0;
-				white-space: pre-wrap;
-				word-break: break-all;
-			}
+// 			.message-body {
+// 				color: var(--red);
+// 			}
 
-			.stack {
-				font-size: 13px;
-				color: var(--dim);
-			}
+// 			.file {
+// 				color: var(--cyan);
+// 				margin-bottom: 0;
+// 				white-space: pre-wrap;
+// 				word-break: break-all;
+// 			}
 
-			code {
-				font-size: 13px;
-				font-family: var(--monospace);
-				color: var(--yellow);
-			}
+// 			.stack {
+// 				font-size: 13px;
+// 				color: var(--dim);
+// 			}
 
-			.file-link {
-				text-decoration: underline;
-				cursor: pointer;
-			}
-		</style>
-	</head>
+// 			code {
+// 				font-size: 13px;
+// 				font-family: var(--monospace);
+// 				color: var(--yellow);
+// 			}
 
-	<body>
-		<div>
-			<div class="window">
-				<pre class="message"><span class="message-body">${err.message}</span></pre>
-				<pre class="file">${err.file}</pre>
-				<pre class="stack">${err.stack}</pre>
-			</div>
-		</div>
-	</body>
-</html>
-`;
+// 			.file-link {
+// 				text-decoration: underline;
+// 				cursor: pointer;
+// 			}
+// 		</style>
+// 	</head>
+
+// 	<body>
+// 		<div>
+// 			<div class="window">
+// 				<pre class="message"><span class="message-body">${err.message}</span></pre>
+// 				<pre class="file">${err.file}</pre>
+// 				<pre class="stack">${err.stack}</pre>
+// 			</div>
+// 		</div>
+// 	</body>
+// </html>
+// `;
 
 export function coalesce_to_error(err: unknown) {
   return err instanceof Error ||
     (err && (err as any).name && (err as any).message)
     ? (err as Error)
     : new Error(JSON.stringify(err));
+}
+
+export class CompileError {
+  readonly _tag = "CompileError";
+  constructor(readonly originalError: any) {}
 }

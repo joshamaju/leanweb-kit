@@ -14,7 +14,7 @@ const rules_by_tag = pipe(
   RA.reduce({} as Record<Tags, Rule[]>, (acc, rule) => {
     acc[rule.tag] = [...(acc[rule.tag] ?? []), rule];
     return acc;
-  }),
+  })
 );
 
 function is_local_path(path: string) {
@@ -27,7 +27,7 @@ function is_local_path(path: string) {
 
 function walk_children(
   nodes: ChildNode[],
-  visitor: (node: ChildNode) => ChildNode,
+  visitor: (node: ChildNode) => ChildNode
 ): ChildNode[] {
   return nodes.map((node) => {
     const _node = node;
@@ -40,65 +40,9 @@ function walk_children(
   });
 }
 
-// export function transform(
-//   code: string,
-//   { filename, cwd = process.cwd() }: { cwd: string; filename: string },
-// ): TE.TaskEither<Error, string> {
-//   return () =>
-//     new Promise((resume) => {
-//       console.log("here");
-
-//       const handler = new DomHandler((error, dom) => {
-//         if (error) {
-//           resume(E.left(error));
-//         } else {
-//           const nodes = walk_children(dom, (node) => {
-//             const name = ("name" in node ? node.name : node.type) as Tags;
-//             const rules = rules_by_tag[name];
-
-//             if ("attribs" in node && rules) {
-//               for (let rule of rules) {
-//                 if (name === rule.tag) {
-//                   for (let name in node.attribs) {
-//                     const value = node.attribs[name];
-
-//                     const parsed = path.parse(filename);
-
-//                     if (
-//                       name === rule.attribute &&
-//                       value &&
-//                       is_local_path(value)
-//                     ) {
-//                       const resolved = path.resolve(parsed.dir, value);
-//                       const source = path.relative(cwd, resolved);
-//                       node.attribs[name] = `${value}?s=${source}`;
-//                     }
-//                   }
-//                 }
-//               }
-//             }
-
-//             return node;
-//           });
-
-//           resume(E.right(render(nodes, { encodeEntities: false })));
-//         }
-//       });
-
-//       const parser = new Parser(handler, {
-//         lowerCaseTags: false,
-//         recognizeSelfClosing: true,
-//       });
-
-//       parser.write(code);
-
-//       parser.end();
-//     });
-// }
-
 export function transform(
   code: string,
-  { filename, cwd = process.cwd() }: { cwd: string; filename: string },
+  { filename, cwd = process.cwd() }: { cwd: string; filename: string }
 ): Effect.Effect<never, Error, string> {
   return Effect.async((resume) => {
     const handler = new DomHandler((error, dom) => {

@@ -3,7 +3,7 @@ import * as path from "node:path";
 import colors from "kleur";
 import ts from "typescript";
 
-import * as O from "fp-ts/lib/Option.js";
+import * as O from "@effect/data/Option";
 
 import { write_if_changed } from "./utils.js";
 import { posixify } from "../utils/filesystem.js";
@@ -16,7 +16,7 @@ function maybe_file(cwd: string, file: string) {
     return O.some(resolved);
   }
 
-  return O.none;
+  return O.none();
 }
 
 function project_relative(file: string) {

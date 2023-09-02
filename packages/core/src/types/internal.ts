@@ -66,12 +66,6 @@ export interface Builder {
   config: Config;
 
   /**
-   * Generate a server-side manifest to initialise the SvelteKit [server](https://kit.svelte.dev/docs/types#public-types-server) with.
-   * @param opts a relative path to the base directory of the app and optionally in which format (esm or cjs) the manifest should be generated
-   */
-  generateManifest(opts: { relativePath: string }): string;
-
-  /**
    * Resolve a path to the `name` directory inside `outDir`, e.g. `/path/to/.svelte-kit/my-adapter`.
    * @param name path to the file, relative to the build directory
    */
@@ -119,7 +113,7 @@ export interface Builder {
 
   /**
    * Compress files in `directory` with gzip and brotli, where appropriate. Generates `.gz` and `.br` files alongside the originals.
-   * @param {string} directory The directory containing the files to be compressed
+   * @param directory The directory containing the files to be compressed
    */
   compress(directory: string): Promise<void>;
 }

@@ -29,12 +29,12 @@ export function create_assets(config: ValidatedConfig) {
 export function collect_views(config: ValidatedConfig) {
   return pipe(
     Effect.try({
-      try: () => globSync("**/*.html", { cwd: config.views }),
+      try: () => globSync("**/*.html", { cwd: config.files.views }),
       catch: () => new Error("GlobError: unable to scan files"),
     }),
     Effect.map(
       A.map((name) => {
-        const file = path.resolve(config.views, name);
+        const file = path.resolve(config.files.views, name);
         return { name, file };
       })
     )

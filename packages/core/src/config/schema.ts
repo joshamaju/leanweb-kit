@@ -10,9 +10,6 @@ const Adapter = S.object({
 });
 
 export const Config = S.object({
-  views: S.string().optional().default("src/views"),
-  entry: S.string().optional().default("src/entry"),
-
   adapter: S.optional(Adapter),
 
   appDir: S.string().optional().default("_app"),
@@ -30,7 +27,8 @@ export const Config = S.object({
 
   files: S.object({
     assets: S.string().optional().default("static"),
-    errorTemplate: S.string().optional().default(join("src", "error.html")),
+    views: S.string().optional().default("src/views"),
+    entry: S.string().optional().default("src/entry"),
     serviceWorker: S.string().optional().default(join("src", "service-worker")),
   })
     .optional()
@@ -39,7 +37,6 @@ export const Config = S.object({
   paths: S.object({
     base: S.string().optional().default(""),
     assets: S.string().optional().default(""),
-    // relative: S.string().optional(),
   })
     .optional()
     .default({}),

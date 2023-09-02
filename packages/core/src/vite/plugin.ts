@@ -8,13 +8,9 @@ import type {
   ViteDevServer,
 } from "vite";
 import * as vite from "vite";
-// import legacy from "@vitejs/plugin-legacy";
 
-import { compile as compileSvx, mdsvex } from "mdsvex";
+import { compile as compileSvx } from "mdsvex";
 import { compile } from "svelte/compiler";
-
-// import * as E from "fp-ts/lib/Either.js";
-// import { pipe } from "fp-ts/lib/function.js";
 
 import { pipe } from "@effect/data/Function";
 import * as E from "@effect/data/Either";
@@ -28,7 +24,7 @@ import colors from "kleur";
 import mime from "mime";
 import { dedent } from "ts-dedent";
 
-import { coalesce_to_error } from "../utils/error.js";
+import { CompileError, coalesce_to_error } from "../utils/error.js";
 import { adapt } from "../adapt/index.js";
 import { transform } from "../compiler/html/index.js";
 import { Config, ValidatedConfig } from "../config/schema.js";
@@ -54,10 +50,10 @@ class HTMLTransformError {
   constructor(readonly originalError: Error) {}
 }
 
-class CompileError {
-  readonly _tag = "CompileError";
-  constructor(readonly originalError: Error) {}
-}
+// class CompileError {
+//   readonly _tag = "CompileError";
+//   constructor(readonly originalError: Error) {}
+// }
 
 class NoEntryFileError {
   readonly _tag = "NoEntryFileError";
@@ -100,7 +96,7 @@ export async function leanweb(user_config?: Config) {
 
   const config = resolved_config.right;
 
-  const entry = Effect.runSync(resolveEntry(config.entry));
+  const entry = Effect.runSync(resolveEntry(config.files.entry));
 
   if (O.isNone(entry)) {
     throw new NoEntryFileError();
@@ -265,7 +261,7 @@ export async function leanweb(user_config?: Config) {
         if (O.isSome(service_worker)) {
           if (config.paths.assets) {
             throw new Error(
-              "Cannot use service worker alongside config.paths.assets",
+              "Cannot use service worker alongside config.paths.assets"
             );
           }
 
@@ -274,8 +270,8 @@ export async function leanweb(user_config?: Config) {
           const client_manifest = JSON.parse(
             fs.readFileSync(
               `${output_directory}/client/${vite_config_.build.manifest}`,
-              "utf-8",
-            ),
+              "utf-8"
+            )
           ) as Manifest;
 
           const files = [...Object.values(client_manifest)].map(({ file }) => {
@@ -289,7 +285,7 @@ export async function leanweb(user_config?: Config) {
             config,
             vite_config_,
             [...manifest.assets, ...files],
-            service_worker.value,
+            service_worker.value
           );
         }
 
@@ -300,8 +296,8 @@ export async function leanweb(user_config?: Config) {
             `\nRun ${colors
               .bold()
               .cyan(
-                "npm run preview",
-              )} to preview your production build locally.`,
+                "npm run preview"
+              )} to preview your production build locally.`
           );
 
           // if (E.isRight(parsed_user_config)) {
@@ -318,7 +314,7 @@ export async function leanweb(user_config?: Config) {
               .cyan("https://kit.svelte.dev/docs/adapters");
 
             console.log(
-              `See ${link} to learn how to configure your app to run on the platform of your choosing`,
+              `See ${link} to learn how to configure your app to run on the platform of your choosing`
             );
           }
 
@@ -355,42 +351,37 @@ export async function leanweb(user_config?: Config) {
   const compile_serve: Plugin = {
     apply: "serve",
     name: "plugin-compile-dev",
-    resolveId: {
-      order: "pre",
-      async handler(source, importer, options) {
-        if (importer && html_file_regex.test(source)) {
-          let res = await this.resolve(source, importer, {
-            skipSelf: true,
-            ...options,
-          });
+    // resolveId: {
+    //   order: "pre",
+    //   async handler(source, importer, options) {
+    //     if (importer && html_file_regex.test(source)) {
+    //       let res = await this.resolve(source, importer, {
+    //         skipSelf: true,
+    //         ...options,
+    //       });
 
-          // console.log("-------------");
-          // console.log("\nresolve id: ", source, importer, isMarkdown(source));
-          // console.log("-------------");
+    //       // console.log("-------------");
+    //       // console.log("\nresolve id: ", source, importer, isMarkdown(source));
+    //       // console.log("-------------");
 
-          if (!res || res.external) return res;
+    //       if (!res || res.external) return res;
 
-          if (isMarkdown(source)) {
-            const parsed = path.parse(importer);
-            const resolved = path.resolve(parsed.dir, source);
-            return resolved + html_postfix;
-          }
-        }
-      },
-    },
+    //       if (isMarkdown(source)) {
+    //         const parsed = path.parse(importer);
+    //         const resolved = path.resolve(parsed.dir, source);
+    //         return resolved + html_postfix;
+    //       }
+    //     }
+    //   },
+    // },
     load(id) {
       if (!id.endsWith(html_postfix)) return;
-      // console.log("-------------");
-      // console.log("load: ", id);
-      // console.log("-------------");
       return fs.readFileSync(id.replace(html_postfix_regex, ""), "utf-8");
     },
     async transform(html, id_) {
-      // if (id.endsWith(html_postfix)) {
-      //   console.log("\ntransform: ", id, html);
-      // }
-
-      const id = id_.endsWith(html_postfix) ? id_.replace(html_postfix_regex, "") : id_;
+      const id = id_.endsWith(html_postfix)
+        ? id_.replace(html_postfix_regex, "")
+        : id_;
 
       if (html_file_regex.test(id)) {
         const program = Effect.gen(function* ($) {
@@ -398,28 +389,25 @@ export async function leanweb(user_config?: Config) {
             isMarkdown(id)
               ? pipe(
                   Effect.tryPromise({
-                    try: () =>
-                      compileSvx(html, { filename: id, extensions: [".html"] }),
-                    catch: (e) => new CompileError(coalesce_to_error(e)),
+                    try: () => compileSvx(html),
+                    catch: (e) => new CompileError(e as any),
                   }),
                   Effect.flatMap(O.fromNullable),
                   Effect.map((_) => _.code),
                   Effect.catchTag("NoSuchElementException", () =>
-                    Effect.succeed(html),
-                  ),
+                    Effect.succeed(html)
+                  )
                 )
-              : Effect.succeed(html),
+              : Effect.succeed(html)
           );
-
-          // console.log("\ntransform: ", id, code);
 
           const trnx_code = yield* $(transform(code, { cwd, filename: id }));
 
           const vite_html = yield* $(
             Effect.tryPromise({
               try: () => vite_server.transformIndexHtml(id, trnx_code),
-              catch: (e) => new HTMLTransformError(coalesce_to_error(e)),
-            }),
+              catch: (e) => new HTMLTransformError(e as any),
+            })
           );
 
           /** Remove vite client just incase we have a component that has a svelte script with minimal html, cause
@@ -428,15 +416,15 @@ export async function leanweb(user_config?: Config) {
            **/
           const without_vite_client = vite_html.replace(
             vite_client_regex,
-            () => "",
+            () => ""
           );
 
           const component = yield* $(
             Effect.try({
               try: () =>
                 compile(without_vite_client, { generate: "ssr", filename: id }),
-              catch: (e) => new CompileError(coalesce_to_error(e)),
-            }),
+              catch: (e) => new CompileError(e as any),
+            })
           );
 
           return component;
@@ -506,7 +494,7 @@ export async function leanweb(user_config?: Config) {
          */
         const resolved_view = path.join(
           views_out_directory,
-          path.resolve(parsed.dir, source).substring(cwd.length),
+          path.resolve(parsed.dir, source).substring(cwd.length)
         );
 
         return resolved_view + html_postfix;
@@ -534,23 +522,27 @@ export async function leanweb(user_config?: Config) {
       return fs.readFileSync(id.replace(html_postfix_regex, ""), "utf-8");
     },
     async transform(code, id) {
+      // console.log("\nid: ", id);
+
       if (!id.endsWith(html_postfix)) return;
 
       const clean_id = id.replace(html_postfix_regex, "");
 
       let code_ = code;
 
-      if (isMarkdown(clean_id)) {
-        const result = await compileSvx(code_, { filename: clean_id });
+      // console.log("\nclean: ", id, clean_id);
 
-        // console.log("-------------");
-        // console.log("markdown: ", clean_id, code_, code, result);
-        // console.log("-------------");
+      if (isMarkdown(clean_id)) {
+        const result = await compileSvx(code_);
+
+        // console.log("\n=============");
+        // console.log("markdown: ", code_, result);
+        // console.log("============");
 
         if (result) code_ = result.code;
       }
 
-      const res = compile(code_, { generate: "ssr", filename: clean_id });
+      const res = compile(code_, { generate: "ssr" });
       return res.js;
     },
   };
@@ -626,9 +618,9 @@ function parse_config(config: Config) {
 function resolve_config(config: ValidatedConfig) {
   const _config = { ...config };
 
-  _config.entry = path.join(cwd, config.entry);
-  _config.views = path.join(cwd, config.views);
   _config.outDir = path.join(cwd, config.outDir);
+  _config.files.entry = path.join(cwd, config.files.entry);
+  _config.files.views = path.join(cwd, config.files.views);
 
   for (const k in config.files) {
     const key = k as keyof typeof config.files;
