@@ -101,7 +101,7 @@ app.post("/register", (ctx) => {
 app.get("/editor/:slug?", async (ctx) => {
   const slug = ctx.req.param("slug");
 
-  let article: Article = {
+  let article: Partial<Article> = {
     body: "",
     title: "",
     tagList: [],
