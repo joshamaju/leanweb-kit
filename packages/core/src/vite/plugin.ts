@@ -32,7 +32,7 @@ import * as sync from "../sync/index.js";
 import { create_assets } from "../sync/write_views.js";
 import { Asset, BuildData, Env, View } from "../types/internal.js";
 import { VITE_HTML_PLACEHOLDER } from "../utils/constants.js";
-import { mkdirp, rimraf } from "../utils/filesystem.js";
+import { mkdirp, posixify, rimraf } from "../utils/filesystem.js";
 import { resolveEntry } from "../utils/utils.js";
 import { build_service_worker } from "./build/service_worker.js";
 import { dev } from "./dev/index.js";
@@ -158,20 +158,44 @@ export async function leanweb(user_config?: Config) {
         ssr ? "server" : "client"
       }`;
 
+      const allow = new Set([
+        config.outDir,
+        path.resolve("src"),
+        path.resolve("node_modules"),
+        path.resolve(vite.searchForWorkspaceRoot(cwd), "node_modules"),
+      ]);
+
       return {
         root: cwd,
         publicDir: config.files.assets,
         base: !ssr ? assets_base(config) : "./",
-        ssr: { noExternal: ["hono", "svelte", "esm-env"] },
+        ssr: { noExternal: ["hono", "svelte", "esm-env", "leanweb-kit"] },
         define: {
           __LEANWEB_DEV__: !is_build ? "true" : "false",
           __LEANWEB_ADAPTER_NAME__: s(config.adapter?.name),
         },
         server: {
           sourcemapIgnoreList,
+          fs: {
+            allow: [...allow],
+          },
+          watch: {
+            ignored: [
+              // Ignore all siblings of config.kit.outDir/generated
+              `${posixify(config.outDir)}/!(generated)`,
+            ],
+          },
         },
         resolve: {
           alias: [{ find: "__GENERATED__", replacement: generated }],
+        },
+        optimizeDeps: {
+          exclude: [
+            "leanweb-kit",
+            // exclude kit features so that libraries using them work even when they are prebundled
+            // this does not affect app code, just handling of imported libraries that use $app or $env
+            "$env",
+          ],
         },
         worker: {
           rollupOptions: {
