@@ -10,10 +10,12 @@ import type {
 import * as vite from "vite";
 
 import { compile as compileSvx } from "mdsvex";
-import { compile } from "svelte/compiler";
+import { compile, preprocess } from "svelte/compiler";
 
-import { pipe } from "@effect/data/Function";
+import * as default_preprocess from "svelte-preprocess";
+
 import * as E from "@effect/data/Either";
+import { pipe } from "@effect/data/Function";
 import * as O from "@effect/data/Option";
 import * as Effect from "@effect/io/Effect";
 
@@ -24,7 +26,6 @@ import colors from "kleur";
 import mime from "mime";
 import { dedent } from "ts-dedent";
 
-import { CompileError, coalesce_to_error } from "../utils/error.js";
 import { adapt } from "../adapt/index.js";
 import { transform } from "../compiler/html/index.js";
 import { Config, ValidatedConfig } from "../config/schema.js";
@@ -32,6 +33,7 @@ import * as sync from "../sync/index.js";
 import { create_assets } from "../sync/write_views.js";
 import { Asset, BuildData, Env, View } from "../types/internal.js";
 import { VITE_HTML_PLACEHOLDER } from "../utils/constants.js";
+import { CompileError, HTMLTransformError } from "../utils/error.js";
 import { mkdirp, posixify, rimraf } from "../utils/filesystem.js";
 import { resolveEntry } from "../utils/utils.js";
 import { build_service_worker } from "./build/service_worker.js";
@@ -44,16 +46,6 @@ import { assets_base, logger } from "./utils/index.js";
 class ConfigParseError {
   readonly _tag = "ConfigParseError";
 }
-
-class HTMLTransformError {
-  readonly _tag = "HTMLTransformError";
-  constructor(readonly originalError: Error) {}
-}
-
-// class CompileError {
-//   readonly _tag = "CompileError";
-//   constructor(readonly originalError: Error) {}
-// }
 
 class NoEntryFileError {
   readonly _tag = "NoEntryFileError";
@@ -443,10 +435,24 @@ export async function leanweb(user_config?: Config) {
             () => ""
           );
 
+          const preprocessed = yield* $(
+            Effect.tryPromise({
+              try: () =>
+                preprocess(
+                  without_vite_client,
+                  [default_preprocess.default()],
+                  { filename: id }
+                ),
+              catch: (e) => new CompileError(e as any),
+            })
+          );
+
+          console.log("\npreprocessed", preprocessed);
+
           const component = yield* $(
             Effect.try({
               try: () =>
-                compile(without_vite_client, { generate: "ssr", filename: id }),
+                compile(preprocessed.code, { generate: "ssr", filename: id }),
               catch: (e) => new CompileError(e as any),
             })
           );

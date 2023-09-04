@@ -11,11 +11,6 @@ import { VITE_HTML_CLIENT } from "../utils/constants.js";
 import { CompileError, coalesce_to_error } from "../utils/error.js";
 import { prepareError, template } from "./error.js";
 
-// class CompileError {
-//   readonly _tag = "CompileError";
-//   constructor(readonly module: string, readonly originalError: unknown) {}
-// }
-
 class RenderError {
   readonly _tag = "RenderError";
   constructor(readonly module: string, readonly originalError: Error) {}
@@ -206,23 +201,7 @@ export async function render(view: string, props: object = {}) {
       );
     }),
     Effect.catchAll((e) => {
-      const err = e.originalError;
-      // const message = err.message;
-
       let html: string;
-
-      // if (__LEANWEB_DEV__) {
-      //   html = runtimeErrorTemplate({
-      //     ...e,
-      //     message,
-      //     file: e.module,
-      //     stack: err.stack ?? "",
-      //   });
-      // } else {
-      //   html = "Internal server error";
-      // }
-
-      console.log("\nerr: ", prepareError(err));
 
       if (__LEANWEB_DEV__) {
         // To get around class instanceof check failing due to a vite problem

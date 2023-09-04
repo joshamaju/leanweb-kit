@@ -2,16 +2,13 @@
 
 Toolkit for a lean web
 
-> Express like router for the modern web
-
-# 🚧 This project is still in the experimental stage. Do not use in production
-
 ## Features
 
 - Hot Module Reload
 - Use Svelte for templating with familiar express like router
 - Scoped css, build your apps with reusable components
 - Markdown support, MDX but for svelte ([link](https://mdsvex.com/))
+- Typed templates with typescript out of the box
 - Deploy anywhere, with adapters for different platforms. Currently supported Vercel and Node
 - Build websites/apps with modern DX (bundling, minifying etc) without sacrificing the user experience
 - Use only what you need, no unnecessary JavaScript sent to the client
@@ -77,6 +74,15 @@ will not work, it has to be
 ```
 
 ## Getting started
+
+```bash
+git clone https://github.com/theleanweb/leanweb-kit-starter.git
+cd leanweb-kit-starter
+npm i
+npm run dev
+```
+
+### Manually
 
 ```bash
 mkdir project-name

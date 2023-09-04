@@ -89,24 +89,15 @@ export async function dev(
     return { module, module_node, url };
   }
 
-  async function update_manifest() {
+  function update() {
     try {
-      // manifest = sync.create(config);
-
       sync.create(config);
-
-      // if (manifest_error) {
-      //   manifest_error = null;
-      //   vite.ws.send({ type: "full-reload" });
-      // }
     } catch (error: any) {
-      // manifest_error = /** @type {Error} */ error;
-
       console.error(color.bold().red(error.message));
 
       vite.ws.send({
         type: "error",
-        err: { message: "Invalid routes", stack: "" },
+        err: { message: error.message, stack: "" },
       });
 
       return;
@@ -117,7 +108,7 @@ export async function dev(
     return stack ? vite.ssrRewriteStacktrace(stack) : stack;
   }
 
-  await update_manifest();
+  update();
 
   const watch = (event: string, cb: (file: string) => void) => {
     vite.watcher.on(event, (file) => {
@@ -137,52 +128,18 @@ export async function dev(
     }, 100);
   };
 
-  // flag to skip watchers if server is already restarting
-  let restarting = false;
-
   // Debounce add/unlink events because in case of folder deletion or moves
   // they fire in rapid succession, causing needless invocations.
-  watch("add", () => debounce(update_manifest));
-  watch("unlink", () => debounce(update_manifest));
-
-  // watch("change", (file) => {
-  //   // Don't run for a single file if the whole manifest is about to get updated
-  //   if (timeout || restarting) return;
-
-  //   // sync.update(svelte_config, manifest_data, file);
-  // });
+  watch("add", () => debounce(update));
+  watch("unlink", () => debounce(update));
 
   const { serviceWorker } = config.files;
-
-  // vite client only executes a full reload if the triggering html file path is index.html
-  // kit defaults to src/app.html, so unless user changed that to index.html
-  // send the vite client a full-reload event without path being set
-  //   if (appTemplate !== "index.html") {
-  // vite.watcher.on("change", (file) => {
-  //   if (file.startsWith(config.entry) && !restarting) {
-  //     vite.ws.send({ type: "full-reload" });
-  //   }
-  // });
-  //   }
 
   vite.watcher.on("all", (_, file) => {
     if (file.startsWith(serviceWorker)) {
       sync.config(config);
     }
   });
-
-  // changing the svelte config requires restarting the dev server
-  // the config is only read on start and passed on to vite-plugin-svelte
-  // which needs up-to-date values to operate correctly
-  // vite.watcher.on("change", (file) => {
-  //   if (path.basename(file) === "svelte.config.js") {
-  //     console.log(
-  //       `svelte config changed, restarting vite dev-server. changed file: ${file}`
-  //     );
-  //     restarting = true;
-  //     vite.restart();
-  //   }
-  // });
 
   const asset_server = sirv(config.files.assets, {
     dev: true,
@@ -248,8 +205,6 @@ export async function dev(
         }`;
 
         const decoded = decodeURI(new URL(base + req.url).pathname);
-
-        console.log(decoded);
 
         if (!decoded.startsWith(config.paths.base)) {
           res.statusCode = 404;
