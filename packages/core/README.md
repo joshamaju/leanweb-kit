@@ -33,20 +33,6 @@ Toolkit for a lean web
     ├── package.json
     └── tsconfig.json
 
-## Routing
-
-[link](https://hono.dev/api/routing)
-
-```ts
-import {render} from 'leanweb-kit/runtime'
-
-const app = new Router()
-
-app.get('/', () => render('home', {/* your template data (props) */}))
-
-// ...
-```
-
 ## Gotchas
 
 - Templating is done using svelte, but template files must use the .html file extension instead of .svelte
@@ -150,4 +136,34 @@ npm run build
 
 ```bash
 npm run preview
+```
+
+## Routing
+
+[link](https://hono.dev/api/routing)
+
+```ts
+import {render} from 'leanweb-kit/runtime'
+
+const app = new Router()
+
+app.get('/', () => render('home', {/* your template data (props) */}))
+
+// ...
+```
+
+## Rendering
+
+```ts
+// ...
+
+app.get('/', () => render('home', {/* your template data (props) */}))
+
+// or
+
+app.get('/', () => render('home/index'))
+
+// or
+
+app.get('/', () => render('home/index.html'))
 ```

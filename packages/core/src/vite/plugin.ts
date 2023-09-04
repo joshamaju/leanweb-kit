@@ -447,12 +447,16 @@ export async function leanweb(user_config?: Config) {
             })
           );
 
-          console.log("\npreprocessed", preprocessed);
+          // console.log("\npreprocessed", preprocessed);
 
           const component = yield* $(
             Effect.try({
               try: () =>
-                compile(preprocessed.code, { generate: "ssr", filename: id }),
+                compile(preprocessed.code, {
+                  filename: id,
+                  generate: "ssr",
+                  dev: vite_env_.command === "serve",
+                }),
               catch: (e) => new CompileError(e as any),
             })
           );
